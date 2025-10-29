@@ -1,0 +1,11 @@
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.trn
+*.suo
+*.ssmsproj.user
+*.user
+
+
+.obsidian/
