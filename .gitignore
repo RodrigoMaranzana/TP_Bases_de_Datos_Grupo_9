@@ -6,6 +6,7 @@
 *.suo
 *.ssmsproj.user
 *.user
+*.vsidx
 
 
 .obsidian/
