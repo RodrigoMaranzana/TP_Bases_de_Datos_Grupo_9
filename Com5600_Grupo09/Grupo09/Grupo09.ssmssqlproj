@@ -3,29 +3,47 @@
   <Items>
     <LogicalFolder Name="Conexiones" Type="2" Sorted="true">
       <Items>
-        <ConnectionNode Name="RODRIGO\SQLEXPRESS:RODRIGO\rodri">
-          <Created>2025-10-29T22:20:00.8143847-03:00</Created>
+        <ConnectionNode Name="DESKTOP-3BJEC5M\SQLEXPRESS:DESKTOP-3BJEC5M\Daian">
+          <Created>2025-10-31T12:36:28.3650792-03:00</Created>
           <Type>SQL</Type>
-          <Server>RODRIGO\SQLEXPRESS</Server>
+          <Server>DESKTOP-3BJEC5M\SQLEXPRESS</Server>
           <UserName />
           <Authentication>Autenticación de Windows</Authentication>
           <InitialDB />
-          <LoginTimeout>30</LoginTimeout>
-          <TrustServerCertificate>False</TrustServerCertificate>
-          <EncryptionOption>False</EncryptionOption>
-          <ExecutionTimeout>0</ExecutionTimeout>
+          <LoginTimeout>15</LoginTimeout>
+          <TrustServerCertificate>True</TrustServerCertificate>
+          <EncryptionOption>True</EncryptionOption>
+          <ExecutionTimeout>30</ExecutionTimeout>
           <ConnectionProtocol>NotSpecified</ConnectionProtocol>
-          <ApplicationName>Microsoft SQL Server Management Studio - Consulta</ApplicationName>
+          <ApplicationName>SQL Server Management Studio</ApplicationName>
         </ConnectionNode>
       </Items>
     </LogicalFolder>
     <LogicalFolder Name="Consultas" Type="0" Sorted="true">
       <Items>
         <FileNode Name="00_CreacionDB.sql">
-          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:RODRIGO\SQLEXPRESS:True</AssociatedConnectionMoniker>
-          <AssociatedConnSrvName>RODRIGO\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
           <AssociatedConnUserName />
           <FullPath>00_CreacionDB.sql</FullPath>
+        </FileNode>
+        <FileNode Name="01_CreacionTablas.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:DESKTOP-3BJEC5M\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>DESKTOP-3BJEC5M\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>01_CreacionTablas.sql</FullPath>
+        </FileNode>
+        <FileNode Name="02_CreacionSPDatosVarios.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:DESKTOP-3BJEC5M\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>DESKTOP-3BJEC5M\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>02_CreacionSPDatosVarios.sql</FullPath>
+        </FileNode>
+        <FileNode Name="03_CreacionSPImportarInquilinoPropietariosUF.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:DESKTOP-3BJEC5M\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>DESKTOP-3BJEC5M\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>03_CreacionSPImportarInquilinoPropietariosUF.sql</FullPath>
         </FileNode>
       </Items>
     </LogicalFolder>
