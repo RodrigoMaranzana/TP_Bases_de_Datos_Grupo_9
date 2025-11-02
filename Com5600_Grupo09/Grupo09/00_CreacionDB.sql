@@ -18,6 +18,16 @@
 *
 **********************************************************/
 
+/**		Habilita opc. avanzadas y OPENROWSET	 **/
+
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+GO
+
+EXEC sp_configure 'Ad Hoc Distributed Queries', 1;
+RECONFIGURE;
+GO
+
 /**		Eliminación de la Base de Datos	 **/
 
 USE master;
@@ -32,7 +42,8 @@ GO
 
 /**		Creación de la Base de Datos	 **/
 
-CREATE DATABASE Com5600G09;
+CREATE DATABASE Com5600G09
+COLLATE Latin1_General_CI_AI;
 GO
 
 USE Com5600G09;
@@ -40,6 +51,12 @@ GO
 
 /**		Creación de Esquemas	 **/
 
+/**
+* Esquema para los objetos necesarios para la creación
+* de los stored procedures de importación
+**/
+CREATE SCHEMA importar;
+GO
 
 /**
 * Esquema para los objetos referidos a todo lo relacionado
@@ -60,4 +77,11 @@ GO
 * a la parte monetaria, pagos, deudas, costos y liquidaciones.
 **/
 CREATE SCHEMA contable;
+GO
+
+/**
+* Esquema para los objetos genericos aprovechables
+* en todas las tablas, como por ejemplo validaciones de tipos.
+**/
+CREATE SCHEMA general;
 GO
