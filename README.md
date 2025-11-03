@@ -18,13 +18,13 @@
     - `Windows 11 64bits` (`On-premise`)
     - `Windows 10 64bits` (`Oracle VirtualBox`)
 
-> [WARNING]
+> [!WARNING]
 > Se presentaron problemas de incompatibilidad con `Microsoft.ACE.OLEDB.16.0` y `Microsoft.ACE.OLEDB.12.0` cuando se intentó utilizar el modo InProcess mientras se tiene intalada alguna versión moderna de Office con instalador `Click and Run`.
 > Se logró utilizar `OLEDB` tanto `12.0` como `16.0` para la importación de archivos .xlsx utilizando una máquina virtual sin instalación del paquete de office, con la instalación  de `Microsoft Access 2016 Runtime` y la correcta habilitación de permisos para el servicio de nuestra instancia de SQL Server dentro de `services.msc`.
 > Sin la anterior habilitación de servicios, la ejecución de `OPENROWSET` fallará ya que el proveedor OLEDB arrojará el siguiente error:
-```
-The OLE DB provider "Microsoft.Ace.OLEDB.12.0" for linked server "(null)" reported an error. Access denied.
-```
+> ```
+> The OLE DB provider "Microsoft.Ace.OLEDB.12.0" for linked server "(null)" reported an error. Access denied.
+>```
 > Se adjunta la fuente donde la solución a dicho error se encuentra documentada: [LINK](https://www.aspsnippets.com/Articles/96/The-OLE-DB-provider-Microsoft.Ace.OLEDB.12.0-for-linked-server-null/)
 
 
