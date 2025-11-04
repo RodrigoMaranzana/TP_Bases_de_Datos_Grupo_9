@@ -18,6 +18,7 @@
 *
 **********************************************************/
 
+
 /**		Habilita opc. avanzadas y OPENROWSET	 **/
 
 EXEC sp_configure 'show advanced options', 1;
@@ -28,7 +29,9 @@ EXEC sp_configure 'Ad Hoc Distributed Queries', 1;
 RECONFIGURE;
 GO
 
-/**		Eliminación de la Base de Datos	 **/
+/**********************************
+* Eliminación de la Base de Datos *
+***********************************/
 
 USE master;
 GO
@@ -40,7 +43,10 @@ BEGIN
 END
 GO
 
-/**		Creación de la Base de Datos	 **/
+
+/**********************************
+*   Creación de la Base de Datos  
+***********************************/
 
 CREATE DATABASE Com5600G09
 COLLATE Latin1_General_CI_AI;
@@ -49,39 +55,36 @@ GO
 USE Com5600G09;
 GO
 
-/**		Creación de Esquemas	 **/
+/**********************************
+*		Creación de Esquemas	  
+***********************************/
 
-/**
-* Esquema para los objetos necesarios para la creación
-* de los stored procedures de importación
-**/
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Esquema para los SP de importación. */
+----------------------------------------------------------------------------------------------------------------------------------
 CREATE SCHEMA importar;
 GO
 
-/**
-* Esquema para los objetos referidos a todo lo relacionado
-* a partes físicas y estructurales del Consorcio.
-**/
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Esquema para los objetos referidos a las partes físicas y estructurales del Consorcio. */
+----------------------------------------------------------------------------------------------------------------------------------
 CREATE SCHEMA infraestructura;
 GO
 
-/**
-* Esquema para los objetos referidos a todo lo relacionado
-* a habitantes, personas externas y su informacion relacionada.
-**/
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Esquema para los objetos referidos a los habitantes, personas externas y su informacion relacionada. */
+----------------------------------------------------------------------------------------------------------------------------------
 CREATE SCHEMA persona;
 GO
 
-/**
-* Esquema para los objetos referidos a todo lo relacionado
-* a la parte monetaria, pagos, deudas, costos y liquidaciones.
-**/
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Esquema para los objetos referidos a la parte monetaria, pagos, deudas, costos y liquidaciones. */
+----------------------------------------------------------------------------------------------------------------------------------
 CREATE SCHEMA contable;
 GO
 
-/**
-* Esquema para los objetos genericos aprovechables
-* en todas las tablas, como por ejemplo validaciones de tipos.
-**/
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Esquema para los objetos genericos aprovechables en todas las tablas, como por ejemplo validaciones de tipos */
+----------------------------------------------------------------------------------------------------------------------------------
 CREATE SCHEMA general;
 GO
