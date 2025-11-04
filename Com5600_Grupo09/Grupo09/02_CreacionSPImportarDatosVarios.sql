@@ -16,13 +16,17 @@ USE Com5600G09;
 GO
 
 CREATE OR ALTER PROCEDURE importar.p_ImportarDatosVarios
-    @RutaArchivoXLSX VARCHAR(260)
+    @RutaArchivo VARCHAR(260)
 AS
 BEGIN
     SET NOCOUNT ON;
 
     PRINT '-- INCIO DE p_ImportarDatosVarios --';
     
+    DROP TABLE IF EXISTS #ConsorciosXLSXTemp;
+    DROP TABLE IF EXISTS #ProveedoresXLSXTemp;
+    DROP TABLE IF EXISTS #ProveedoresTempFiltrada;
+
     CREATE TABLE #ConsorciosXLSXTemp (
         NombreDelConsorcio VARCHAR(255) COLLATE Latin1_General_CI_AI,
         Domicilio VARCHAR(255) COLLATE Latin1_General_CI_AI,
@@ -43,17 +47,29 @@ BEGIN
         /* BLOQUE GENERAL */
         ----------------------------------------------------------------------------------------------------------------------------------
 
+        DECLARE @Proceso VARCHAR(128) = 'importar.p_ImportarDatosVarios';
+
         DECLARE @Conexion NVARCHAR(MAX);
-        SET @Conexion = N'''Excel 12.0;Database=' + @RutaArchivoXLSX + ';HDR=YES;IMEX=1''';
+        SET @Conexion = N'''Excel 12.0;Database=' + @RutaArchivo + ';HDR=YES;IMEX=1''';
         DECLARE @Openrowset NVARCHAR(MAX);
 
-        DECLARE @FilasTotalesExcel INT;;
-        DECLARE @FilasInsertadas INT;
-        DECLARE @FilasCorruptas INT;
-        DECLARE @FilasDuplicadas INT;
+        -- variables para reporte XML
+        DECLARE @LeidosDeArchivo INT;
+        DECLARE @Insertados INT;
+        DECLARE @Actualizados INT;
+        DECLARE @DuplicadosEnArchivo INT;
+        DECLARE @DuplicadosEnTabla INT;
+        DECLARE @Corruptos INT;
+        DECLARE @ReporteXML XML;
+        DECLARE @LogID INT;
+
+        SET @ReporteXML = (
+            SELECT @RutaArchivo AS 'NombreArchivo' 
+            FOR XML PATH('ReporteXMLRegistros')
+        );
 
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* HOJA CONSORCIOS */
+        /* IMPORTACION HOJA CONSORCIOS */
         ----------------------------------------------------------------------------------------------------------------------------------
 
         PRINT CHAR(10) + 'Iniciando el proceso para la hoja de los consorcios';
@@ -64,22 +80,18 @@ BEGIN
                 N'FROM OPENROWSET(''Microsoft.ACE.OLEDB.12.0'', ' + @Conexion + N', ''SELECT * FROM [Consorcios$]'')';
         
         EXEC sp_executesql @Openrowset;
-
-        SELECT @FilasTotalesExcel = COUNT(*) FROM #ConsorciosXLSXTemp;
-        PRINT 'La hoja de consorcios se cargó en #ConsorciosXLSXTemp.' + CHAR(10) + 'Filas totales: ' + CAST(@FilasTotalesExcel AS VARCHAR(10));
-
+        SET @LeidosDeArchivo = @@ROWCOUNT;    
 
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* FILAS CORRUPTAS DEL ARCHIVO XLSX */
+        /* FILAS CORRUPTAS DE LA HOJA CONSORCIOS */
         ----------------------------------------------------------------------------------------------------------------------------------
 
-        SELECT @FilasCorruptas = COUNT(*)
+        SELECT @Corruptos = COUNT(*)
         FROM #ConsorciosXLSXTemp
         WHERE (
             NULLIF(LTRIM(RTRIM(#ConsorciosXLSXTemp.NombreDelConsorcio)), '') IS NULL OR
             NULLIF(LTRIM(RTRIM(#ConsorciosXLSXTemp.Domicilio)), '') IS NULL
         );
-
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* UPDATE DE FILAS EXISTENTES */
@@ -98,6 +110,7 @@ BEGIN
             Consorcio.CantidadUF <> ConsorcioTemp.CantidadUnidadesFuncionales OR
             Consorcio.Superficie <> ConsorcioTemp.M2Totales
         )
+        SET @Actualizados = @@ROWCOUNT;
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* INSERT DE FILAS NUEVAS */
@@ -119,24 +132,51 @@ BEGIN
                 FROM infraestructura.Consorcio AS Consorcio
                 WHERE Consorcio.NombreDelConsorcio = LTRIM(RTRIM(ConsorcioTemp.NombreDelConsorcio))
             );
-        SET @FilasInsertadas = @@ROWCOUNT; -- la cantidad de filas que fueron afectadas por el INSERT
-        SET @FilasDuplicadas = @FilasTotalesExcel - @FilasInsertadas - @FilasCorruptas;
-
-        PRINT CHAR(10) + '>>>Importacion de infraestructura.Consorcio completado:'
-        PRINT '     Inserciones totales: ' + CAST(@FilasInsertadas AS VARCHAR(10));
-        PRINT '     Registros duplicados: ' + CAST(@FilasDuplicadas AS VARCHAR(10));
-        PRINT '     Registros corruptas: ' + CAST(@FilasCorruptas AS VARCHAR(10));
-
-        ----------------------------------------------------------------------------------------------------------------------------------
+        SET @Insertados = @@ROWCOUNT;
 
 
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* HOJA PROVEEDORES */
+        /* REPORTE Y LOG HOJA CONSORCIOS */
+        ----------------------------------------------------------------------------------------------------------------------------------
+
+        SET @ReporteXML = (
+            SELECT 
+                @LeidosDeArchivo AS 'LeidosArchivo',
+                @Insertados AS 'Insertados',
+                @Actualizados AS 'Actualizados',
+                @DuplicadosEnArchivo AS 'DuplicadosArchivo',
+                @DuplicadosEnTabla AS 'DuplicadosTabla',
+                @Corruptos AS 'Corruptos'
+            FOR XML PATH('ReporteXMLRegistros')
+        );
+
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'INFO',
+            @Mensaje = 'Proceso de importación de consorcios completado',
+            @ReporteXML = @ReporteXML,
+            @LogIDOut = @LogID OUTPUT; -- obtenemos el PK LogID generado en la insercion
+
+        INSERT INTO general.LogRegistroRechazado (LogID, Motivo, RegistroXML)
+        SELECT
+            @LogID,
+            'CORRUPTO',
+            (
+                SELECT Temp.* FOR XML PATH('Rechazado'), TYPE
+            ) AS RegistroXML
+        FROM #ConsorciosXLSXTemp AS Temp
+        WHERE (
+            NULLIF(LTRIM(RTRIM(Temp.NombreDelConsorcio)), '') IS NULL OR
+            NULLIF(LTRIM(RTRIM(Temp.Domicilio)), '') IS NULL
+        );
+
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* IMPORTACION HOJA PROVEEDORES */
         ----------------------------------------------------------------------------------------------------------------------------------
 
         PRINT CHAR(10) + 'Iniciando el proceso para la hoja de los proveedores';
 
-        SET @Conexion = N'''Excel 12.0;Database=' + @RutaArchivoXLSX + ';HDR=NO;IMEX=1'''; -- indicamos que no tiene header (HDR=NO)
+        SET @Conexion = N'''Excel 12.0;Database=' + @RutaArchivo + ';HDR=NO;IMEX=1'''; -- indicamos que no tiene header (HDR=NO)
 
         SET @Openrowset = 
                      N'INSERT INTO #ProveedoresXLSXTemp (Categoria, RazonSocial, Detalle, NombreDelConsorcio) ' +
@@ -144,9 +184,7 @@ BEGIN
                      N'FROM OPENROWSET(''Microsoft.ACE.OLEDB.12.0'', ' + @Conexion + N', ''SELECT * FROM [Proveedores$B3:E]'')'; -- ignoramos la columna A en blanco y las dos filas iniciales y vamos hasta la columa E
         
         EXEC sp_executesql @Openrowset;
-
-        SELECT @FilasTotalesExcel = COUNT(*) FROM #ProveedoresXLSXTemp;
-        PRINT 'La hoja de proveedores se cargó en #ProveedoresXLSXTemp.' + CHAR(10) + 'Filas totales: ' + CAST(@FilasTotalesExcel AS VARCHAR(10));
+        SET @LeidosDeArchivo = @@ROWCOUNT;
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* REORGANIZACION DE LA TABLA */
@@ -170,10 +208,10 @@ BEGIN
         WHERE Categoria != 'GASTOS DE LIMPIEZA' AND Categoria != 'SERVICIOS PUBLICOS';
 
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* FILAS CORRUPTAS DEL ARCHIVO XLSX */
+        /* FILAS CORRUPTAS DE LA HOJA PROVEEDORES */
         ----------------------------------------------------------------------------------------------------------------------------------
 
-        SELECT @FilasCorruptas = COUNT(*)
+        SELECT @Corruptos = COUNT(*)
         FROM #ProveedoresXLSXTemp
         WHERE (
             NULLIF(#ProveedoresXLSXTemp.Categoria, '') IS NULL OR
@@ -194,6 +232,7 @@ BEGIN
                 tal vez si podrian hacerse actualizaciones masivas luego, con otro SP, por ejemplo del Detalle.
                 Nuestro disenio utilza como UNIQUE compuesto al ConsorcioID, RazonSocial y Detalle.
             **/
+        SET @Actualizados = 0;
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* INSERT DE FILAS NUEVAS */
@@ -221,31 +260,58 @@ BEGIN
                 Servicio.RazonSocial = ProveedoresTemp.RazonSocial AND
                 Servicio.Detalle = ProveedoresTemp.Detalle
             );
-        SET @FilasInsertadas = @@ROWCOUNT; -- la cantidad de filas que fueron afectadas por el INSERT
-        SET @FilasDuplicadas = @FilasTotalesExcel - @FilasInsertadas - @FilasCorruptas;
+        SET @Insertados = @@ROWCOUNT;
 
-        PRINT CHAR(10) + '>>>Importacion de persona.Servicio completado:'
-        PRINT '     Inserciones totales: ' + CAST(@FilasInsertadas AS VARCHAR(10));
-        PRINT '     Registros duplicados: ' + CAST(@FilasDuplicadas AS VARCHAR(10));
-        PRINT '     Registros corruptas: ' + CAST(@FilasCorruptas AS VARCHAR(10));
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* REPORTE Y LOG HOJA PROVEEDORES */
+        ----------------------------------------------------------------------------------------------------------------------------------
+
+        SET @ReporteXML = (
+            SELECT 
+                @LeidosDeArchivo AS 'LeidosArchivo',
+                @Insertados AS 'Insertados',
+                @Actualizados AS 'Actualizados',
+                @DuplicadosEnArchivo AS 'DuplicadosArchivo',
+                @DuplicadosEnTabla AS 'DuplicadosTabla',
+                @Corruptos AS 'Corruptos'
+            FOR XML PATH('ReporteXMLRegistros')
+        );
+
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'INFO',
+            @Mensaje = 'Proceso de importación de proveedores completado',
+            @ReporteXML = @ReporteXML,
+            @LogIDOut = @LogID OUTPUT; -- obtenemos el PK LogID generado en la insercion
+
+        INSERT INTO general.LogRegistroRechazado (LogID, Motivo, RegistroXML)
+            SELECT
+                @LogID,
+                'CORRUPTO',
+                (
+                    SELECT Temp.* FOR XML PATH('Rechazado'), TYPE
+                ) AS RegistroXML
+            FROM #ProveedoresXLSXTemp AS Temp
+        WHERE (
+            NULLIF(Temp.Categoria, '') IS NULL OR
+            NULLIF(Temp.RazonSocial, '') IS NULL OR
+            NULLIF(Temp.NombreDelConsorcio, '') IS NULL OR
+
+            ((Temp.Categoria = 'SERVICIOS PUBLICOS' OR
+            Temp.Categoria = 'GASTOS DE LIMPIEZA') AND
+            NULLIF(Temp.Detalle, '') IS NULL)
+        );
 
     END TRY
     BEGIN CATCH
         
-        PRINT 'Error: No se pudo cargar el archivo XLSX';
-
-        -- problemas con microsoft OLEDB o el archivo .xlsx
-        DECLARE @ErrorMessage NVARCHAR(4000);
-        SELECT @ErrorMessage = ERROR_MESSAGE()
-        PRINT @ErrorMessage;
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'ERROR',
+            @Mensaje = 'Falló la importación';
     
     END CATCH
 
     PRINT CHAR(10) + '-- FIN DE p_ImportarDatosVarios --';
-
-    DROP TABLE IF EXISTS #ConsorciosXLSXTemp;
-    DROP TABLE IF EXISTS #ProveedoresXLSXTemp;
-    DROP TABLE IF EXISTS #ProveedoresTempFiltrada;
-
 END
 GO
