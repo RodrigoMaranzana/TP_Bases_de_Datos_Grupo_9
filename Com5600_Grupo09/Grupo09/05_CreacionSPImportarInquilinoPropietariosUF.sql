@@ -16,13 +16,16 @@
 USE Com5600G09;
 GO
 
-CREATE OR ALTER PROCEDURE importar.p_ImportarClaveUniformePorUF
-    @RutaArchivoCSV VARCHAR(260)
+CREATE OR ALTER PROCEDURE importar.p_ImportarInquilinoPropietarioPorClaveUniformePorUF
+    @RutaArchivo VARCHAR(260)
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    PRINT CHAR(10) + '============== INCIO DE p_ImportarClaveUniformePorUF ==============';
+    PRINT CHAR(10) + '============== INCIO DE p_ImportarInquilinoPropietarioPorClaveUniformePorUF ==============';
+
+    DROP TABLE IF EXISTS #ClaveUniformePorUFCSVTemp;
+    DROP TABLE IF EXISTS #ClaveUniformePorUFLimpio;
 
     CREATE TABLE #ClaveUniformePorUFCSVTemp ( --columnas del archivo
         CvuCbu VARCHAR(255) COLLATE Latin1_General_CI_AI,
@@ -38,22 +41,32 @@ BEGIN
         /* BLOQUE GENERAL */
         ----------------------------------------------------------------------------------------------------------------------------------
 
+        DECLARE @Proceso VARCHAR(128) = 'importar.p_ImportarInquilinoPropietarioPorClaveUniformePorUF';
+
         DECLARE @BulkInsert NVARCHAR(MAX);
 
-        DECLARE @FilasTotalesCSV INT = 0;
-        DECLARE @FilasInsertadas INT = 0;
-        DECLARE @FilasCorruptas INT = 0;
-        DECLARE @FilasDuplicadas INT = 0;
+        -- variables para reporte XML
+        DECLARE @LeidosDeArchivo INT;
+        DECLARE @UFPropietariosActualizados INT;
+        DECLARE @UFInquilinosActualizados INT;
+        DECLARE @Corruptos INT;
+        DECLARE @ReporteXML XML;
+        DECLARE @LogID INT;
+
+        SET @ReporteXML = (
+            SELECT @RutaArchivo AS 'NombreArchivo' 
+            FOR XML PATH('ReporteXMLRegistros')
+        );
         
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* ARCHIVO CSV */
+        /* IMPORTACION ARCHIVO CSV */
         ----------------------------------------------------------------------------------------------------------------------------------
 
         PRINT CHAR(10) + '>>> Iniciando el proceso para el archivo';
 
         SET @BulkInsert = N'
             BULK INSERT #ClaveUniformePorUFCSVTemp
-            FROM ''' + @RutaArchivoCSV + '''
+            FROM ''' + @RutaArchivo + '''
             WITH (
                 FIELDTERMINATOR = ''|'',
                 ROWTERMINATOR = ''0x0d0a'',     -- según notepad es Windows CR LF, este sería el salto de línea ''\r\n''
@@ -62,9 +75,7 @@ BEGIN
             );';
         
         EXEC sp_executesql @BulkInsert;
-
-        SELECT @FilasTotalesCSV = COUNT(*) FROM #ClaveUniformePorUFCSVTemp;
-        PRINT  CHAR(10) + '>>> El archivo se cargo en #ClaveUniformePorUFCSVTemp.' + CHAR(10) + '     Filas totales: ' + CAST(@FilasTotalesCSV AS VARCHAR(10));
+        SET @LeidosDeArchivo = @@ROWCOUNT;
 
         ALTER TABLE #ClaveUniformePorUFCSVTemp ADD RegistroID INT IDENTITY(1,1);
 
@@ -72,7 +83,7 @@ BEGIN
         /* NORMALIZACION Y FILTRADO */
         ----------------------------------------------------------------------------------------------------------------------------------
 
-        WITH CTE AS ( -- limpio los registros de la tabla y doy formato
+        WITH CTEFormato AS ( -- limpio los registros de la tabla y doy formato
             SELECT
                 RegistroID,
                 CASE WHEN general.f_RemoverBlancos(CvuCbu) LIKE '%[^0-9]%' THEN NULL ELSE CAST(general.f_RemoverBlancos(CvuCbu) AS VARCHAR(22)) END AS NroClaveUniforme,
@@ -80,116 +91,123 @@ BEGIN
                 TRY_CAST(NroUnidadFuncional AS INT) AS NroUnidadFuncional,
                 CAST(LTRIM(RTRIM(Piso)) AS CHAR(2)) AS Piso,
                 CAST(UPPER(LTRIM(RTRIM(Departamento))) AS CHAR(1)) AS Departamento
-
             FROM #ClaveUniformePorUFCSVTemp
         )
         SELECT -- especificamos los campos para que no genere ambieguedad con el join el NombreDelConsorcio
-            CTE.RegistroID,
-            CTE.NroClaveUniforme,
-            CTE.NombreDelConsorcio,
-            CTE.NroUnidadFuncional,
-            CTE.Piso,
-            CTE.Departamento, -- con ROW_NUMBER cuento la cantidad de veces que se repiten registros con mismo NombreDelConsorcio y NroUnidadFuncional
+            CTEFormato.RegistroID,
+            CTEFormato.NroClaveUniforme,
+            UnidadFuncional.ConsorcioID,
+            UnidadFuncional.NroUnidadFuncionalID,
+            CuentaBancaria.PersonaID,
+            Propietario.PropietarioID,
+            Inquilino.InquilinoID,
             ROW_NUMBER() OVER (
                 PARTITION BY
-                    CTE.NombreDelConsorcio,
-                    CTE.NroUnidadFuncional,
-                    CTE.Piso,
-                    CTE.Departamento
-                ORDER BY
-                    CTE.RegistroID
-            ) AS CantApariciones 
+                    UnidadFuncional.ConsorcioID,
+                    UnidadFuncional.NroUnidadFuncionalID
+                ORDER BY CTEFormato.RegistroID
+            ) AS CantApariciones
         INTO #ClaveUniformePorUFLimpio
-        FROM CTE
-        WHERE
-            CTE.NroClaveUniforme IS NOT NULL AND  
-            NULLIF(CTE.NombreDelConsorcio, '') IS NOT NULL AND
-            NULLIF(CTE.NroUnidadFuncional, '') IS NOT NULL AND -- priemro validamos lo obvio, que nada no sean NULL
-            EXISTS ( -- debe existir previamente la cuenta bancaria
-                SELECT 1
-                FROM persona.CuentaBancaria AS CuentaBancaria
-                WHERE CuentaBancaria.NroClaveUniformeID = CTE.NroClaveUniforme
-            ) AND
-            EXISTS ( -- debe existir la unidad funcional en algun consorcio
-                SELECT 1
-                FROM infraestructura.Consorcio AS Consorcio
-                JOIN infraestructura.UnidadFuncional AS UnidadFuncional 
-                    ON UnidadFuncional.ConsorcioID = Consorcio.ConsorcioID
-                WHERE 
-                    Consorcio.NombreDelConsorcio = CTE.NombreDelConsorcio AND
-                    UnidadFuncional.NroUnidadFuncionalID = CTE.NroUnidadFuncional AND
-                    UnidadFuncional.Piso = CTE.Piso AND -- revisamos que coincida el piso y departamento con lo guardado en la tabla UnidadFuncional
-                    UnidadFuncional.Departamento = CTE.Departamento);
+        FROM CTEFormato
+        JOIN infraestructura.UnidadFuncional AS UnidadFuncional
+            ON CTEFormato.NroUnidadFuncional = UnidadFuncional.NroUnidadFuncionalID AND CTEFormato.Piso = UnidadFuncional.Piso AND CTEFormato.Departamento = UnidadFuncional.Departamento
+        JOIN infraestructura.Consorcio AS Consorcio
+            ON UnidadFuncional.ConsorcioID = Consorcio.ConsorcioID AND CTEFormato.NombreDelConsorcio = Consorcio.NombreDelConsorcio
+        JOIN persona.CuentaBancaria AS CuentaBancaria
+            ON CTEFormato.NroClaveUniforme = CuentaBancaria.NroClaveUniformeID
+        LEFT JOIN persona.Propietario AS Propietario
+            ON CuentaBancaria.PersonaID = Propietario.PersonaID
+        LEFT JOIN persona.Inquilino AS Inquilino
+            ON CuentaBancaria.PersonaID = Inquilino.PersonaID
+        WHERE CTEFormato.NroClaveUniforme IS NOT NULL;
 
-        SET @FilasCorruptas = @FilasTotalesCSV - @@ROWCOUNT;
-
-        -- informamos que un registro fue rechazado por corrupto
-        SELECT Temp.*,
-            CASE 
-                WHEN Limpio.RegistroID IS NULL THEN 'Rechazado: Corrupto'
-                ELSE 'Rechazado: Duplicado en el archivo'
-            END AS Estado
-        FROM #ClaveUniformePorUFCSVTemp AS Temp
-        LEFT JOIN #ClaveUniformePorUFLimpio AS Limpio
-            ON Temp.RegistroID = Limpio.RegistroID
-        WHERE -- se muestran los que no estan en la tabla limpia o los que estan duplicados en el archivo
-            Limpio.RegistroID IS NULL
-            OR Limpio.CantApariciones > 1;
+        SET @Corruptos = @LeidosDeArchivo - @@ROWCOUNT;
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* UPDATE DE FILAS DE LA TABLA FISICA infraestructura.UnidadFuncional */
         ----------------------------------------------------------------------------------------------------------------------------------
         
+        -- con la anterior consulta vinculamos las claves uniformes con las personas titulares de esos CBU, y luego al hacer JOIN con
+        -- las tablas Propietarios y Inquilinos obtenemos de que tipo es esa persona para una unidad funcional de un consorcio especifico
+
         UPDATE UnidadFuncional
-        SET 
-            UnidadFuncional.NroClaveUniformeID = Limpio.NroClaveUniforme
-        FROM #ClaveUniformePorUFLimpio AS Limpio
-        JOIN infraestructura.Consorcio AS Consorcio 
-            ON Limpio.NombreDelConsorcio = Consorcio.NombreDelConsorcio -- buscamos al consorcio por su nombre
-        JOIN infraestructura.UnidadFuncional AS UnidadFuncional 
-            ON UnidadFuncional.ConsorcioID = Consorcio.ConsorcioID -- donde la unidad pertenezca al consorcio
-            AND UnidadFuncional.NroUnidadFuncionalID = Limpio.NroUnidadFuncional
-        WHERE
-            UnidadFuncional.Piso = Limpio.Piso AND
-            UnidadFuncional.Departamento = Limpio.Departamento AND
-            ISNULL(UnidadFuncional.NroClaveUniformeID, '') <> Limpio.NroClaveUniforme; -- ISNULL() permite actualizar en caso de que la primera vez se haya insertado NULL en la tabla
+        SET UnidadFuncional.PropietarioID = Limpio.PropietarioID
+        FROM infraestructura.UnidadFuncional AS UnidadFuncional
+        JOIN #ClaveUniformePorUFLimpio AS Limpio 
+            ON UnidadFuncional.ConsorcioID = Limpio.ConsorcioID AND UnidadFuncional.NroUnidadFuncionalID = Limpio.NroUnidadFuncionalID
+        WHERE 
+            Limpio.PropietarioID IS NOT NULL
+            AND UnidadFuncional.PropietarioID <> Limpio.PropietarioID;
         
+        SET @UFPropietariosActualizados = @@ROWCOUNT;
+
+        UPDATE UnidadFuncional
+        SET UnidadFuncional.InquilinoID = Limpio.InquilinoID
+        FROM infraestructura.UnidadFuncional AS UnidadFuncional
+        JOIN #ClaveUniformePorUFLimpio AS Limpio 
+            ON UnidadFuncional.ConsorcioID = Limpio.ConsorcioID AND UnidadFuncional.NroUnidadFuncionalID = Limpio.NroUnidadFuncionalID
+        WHERE 
+            Limpio.InquilinoID IS NOT NULL
+            AND ISNULL(UnidadFuncional.InquilinoID, 0) <> Limpio.InquilinoID;
+
+        SET @UFInquilinosActualizados = @@ROWCOUNT;
+
         ----------------------------------------------------------------------------------------------------------------------------------
         /* INSERT DE FILAS NUEVAS EN LA TABLA FISICA infraestructura.UnidadFuncional */
         ----------------------------------------------------------------------------------------------------------------------------------
+        
         /* En este caso no hay inserciones nuevas que realizar, es un archivo de solo actualizaciones de Claves Uniformes */
 
-        SET @FilasInsertadas = @@ROWCOUNT; -- la cantidad de filas que fueron afectadas por el INSERT
-        SET @FilasDuplicadas = @FilasTotalesCSV - @FilasInsertadas - @FilasCorruptas;
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* REPORTE Y LOG persona.Persona, persona.Inquilino, persona.Propietario */
+        ----------------------------------------------------------------------------------------------------------------------------------
+    
+        SET @ReporteXML = (
+            SELECT 
+                @LeidosDeArchivo AS 'LeidosArchivo',
+                @UFPropietariosActualizados AS 'PropietariosActualizados',
+                @UFInquilinosActualizados AS 'InquilinosActualizados',
+                @Corruptos AS 'Corruptos'
+            FOR XML PATH('ReporteXMLRegistros')
+        );
 
-        EXEC general.p_RegistrarLogImportacion
-            @NombreImportacion = 'infraestructura.UnidadFuncional',
-            @FilasInsertadas = @FilasInsertadas,
-            @FilasDuplicadas = @FilasDuplicadas,
-            @FilasCorruptas = @FilasCorruptas,
-            @Detalle = 'Proceso completado con normalidad.',
-            @MostrarPorConsola = 1;   
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'INFO',
+            @Mensaje = 'Proceso de actualizacion de propietarios e inquilinos en las unidades funcionales completado',
+            @ReporteXML = @ReporteXML,
+            @LogIDOut = @LogID OUTPUT; -- obtenemos el PK LogID generado en la insercion
+
+        INSERT INTO general.LogRegistroRechazado (LogID, Motivo, RegistroXML)
+        SELECT
+            @LogID,
+            CASE 
+                WHEN Limpio.RegistroID IS NULL THEN 'CORRUPTO'
+                ELSE 'DUPLICADO EN ARCHIVO'
+            END,
+            (
+                SELECT 
+                    Temp.CvuCbu,
+                    Temp.NombreDelConsorcio,
+                    Temp.NroUnidadFuncional,
+                    Temp.Piso,
+                    Temp.Departamento
+                FOR XML PATH('FilaRechazada'), TYPE -- TYPE genera el reporte XML de forma nativa y no como un texto concatenado
+            )
+        FROM #ClaveUniformePorUFCSVTemp AS Temp
+        LEFT JOIN #ClaveUniformePorUFLimpio AS Limpio ON Temp.RegistroID = Limpio.RegistroID
+        WHERE Limpio.RegistroID IS NULL OR Limpio.CantApariciones > 1;
 
     END TRY
     BEGIN CATCH
       
-        EXEC general.p_RegistrarLogImportacion
-            @NombreImportacion = 'infraestructura.UnidadFuncional',
-            @FilasInsertadas = @FilasInsertadas,
-            @FilasDuplicadas = @FilasDuplicadas,
-            @FilasCorruptas = @FilasCorruptas,
-            @Detalle = 'Error: No se pudo cargar el archivo CSV.',
-            @MostrarPorConsola = 1;
-
-        DECLARE @ErrorMessage NVARCHAR(4000);
-        SELECT @ErrorMessage = ERROR_MESSAGE()
-        PRINT @ErrorMessage;
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'ERROR',
+            @Mensaje = 'Fallo la importacion';
     
     END CATCH
 
-    PRINT CHAR(10) + '============== FIN DE p_ImportarClaveUniformePorUF ==============';
-
-    DROP TABLE IF EXISTS #ClaveUniformePorUFCSVTemp;
-    DROP TABLE IF EXISTS #ClaveUniformePorUFLimpio;
+    PRINT CHAR(10) + '============== FIN DE p_ImportarInquilinoPropietarioPorClaveUniformePorUF ==============';
 END
 GO    
