@@ -38,10 +38,13 @@ GO
 select * from infraestructura.UnidadFuncional;
 GO
 
-EXEC importar.p_ImportarClaveUniformePorUF'C:\Maestros\Inquilino-propietarios-UF.csv';
+EXEC importar.p_ImportarInquilinoPropietarioPorClaveUniformePorUF'C:\Maestros\Inquilino-propietarios-UF.csv';
 GO
 select * from infraestructura.UnidadFuncional;
 GO
 
-select * from general.LogImportaciones;
+select * from general.Log;
+GO
+
+select * from general.LogRegistroRechazado;
 GO

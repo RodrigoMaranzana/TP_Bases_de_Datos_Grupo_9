@@ -482,46 +482,11 @@ BEGIN
 END
 GO
 
+
 ----------------------------------------------------------------------------------------------------------------------------------
 	/* STORED PROCEDURE */
 ----------------------------------------------------------------------------------------------------------------------------------
 
-/**
-CREATE OR ALTER PROCEDURE general.p_RegistrarLogImportacion
-    @NombreImportacion VARCHAR(128),
-    @FilasInsertadas INT,
-    @FilasDuplicadas INT,
-    @FilasCorruptas INT,
-	@Detalle VARCHAR(128),
-    @MostrarPorConsola BIT
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-	BEGIN TRY
-		INSERT INTO general.LogImportaciones(NombreImportacion, FilasInsertadas, FilasDuplicadas, FilasCorruptas, Detalle)
-		VALUES (@NombreImportacion, @FilasInsertadas,@FilasDuplicadas, @FilasCorruptas, @Detalle);
-
-		PRINT 'Se ha registrado un log con los detalles de la importacion'
-
-	END TRY
-	BEGIN CATCH
-		PRINT 'Ha ocurrido un error al intentar registrar el log de la importacion'
-	END CATCH
-
-    IF @MostrarPorConsola = 1
-    BEGIN
-	    PRINT '---------------------------------------------------------------------';
-        PRINT CHAR(10) + '>>> Importacion de ' + @NombreImportacion + ' completado:';
-		PRINT '		Detalle: ' + @Detalle;
-        PRINT '     Inserciones totales: ' + CAST(@FilasInsertadas AS VARCHAR(10));
-        PRINT '     Registros duplicados: ' + CAST(@FilasDuplicadas AS VARCHAR(10));
-        PRINT '     Registros corruptos: ' + CAST(@FilasCorruptas AS VARCHAR(10));
-        PRINT '---------------------------------------------------------------------';
-    END
-END;
-GO
-**/
 
 CREATE OR ALTER PROCEDURE general.p_RegistrarLog
     @Proceso VARCHAR(255),
@@ -587,4 +552,8 @@ VALUES (
 	NULL,
 	NULL
 );
+GO
+
+INSERT INTO persona.Propietario(PersonaID)
+VALUES (1);
 GO

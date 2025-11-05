@@ -153,7 +153,7 @@ BEGIN
         EXEC general.p_RegistrarLog 
             @Proceso = @Proceso,
             @Tipo = 'INFO',
-            @Mensaje = 'Proceso de importación de consorcios completado',
+            @Mensaje = 'Proceso de importacion de consorcios completado',
             @ReporteXML = @ReporteXML,
             @LogIDOut = @LogID OUTPUT; -- obtenemos el PK LogID generado en la insercion
 
@@ -280,7 +280,7 @@ BEGIN
         EXEC general.p_RegistrarLog 
             @Proceso = @Proceso,
             @Tipo = 'INFO',
-            @Mensaje = 'Proceso de importación de proveedores completado',
+            @Mensaje = 'Proceso de importacion de proveedores completado',
             @ReporteXML = @ReporteXML,
             @LogIDOut = @LogID OUTPUT; -- obtenemos el PK LogID generado en la insercion
 
@@ -308,7 +308,7 @@ BEGIN
         EXEC general.p_RegistrarLog 
             @Proceso = @Proceso,
             @Tipo = 'ERROR',
-            @Mensaje = 'Falló la importación';
+            @Mensaje = 'Fallo la importacion';
     
     END CATCH
 
