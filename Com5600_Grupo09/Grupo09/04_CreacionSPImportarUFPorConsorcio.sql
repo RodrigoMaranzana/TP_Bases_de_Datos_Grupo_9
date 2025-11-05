@@ -17,12 +17,15 @@ USE Com5600G09;
 GO
 
 CREATE OR ALTER PROCEDURE importar.p_ImportarUnidadFuncional
-    @RutaArchivoCSV VARCHAR(260)
+    @RutaArchivo VARCHAR(260)
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    PRINT CHAR(10) + '============== INCIO DE p_ImportarInquilinoPropietariosUF ==============';
+    PRINT CHAR(10) + '============== INCIO DE p_ImportarUnidadFuncional ==============';
+
+    DROP TABLE IF EXISTS #UnidadFuncionalCSVTemp;
+    DROP TABLE IF EXISTS #UnidadFuncionalLimpio;
 
     CREATE TABLE #UnidadFuncionalCSVTemp ( --columnas del archivo
         NombreDelConsorcio VARCHAR(255) COLLATE Latin1_General_CI_AI,
@@ -43,22 +46,34 @@ BEGIN
         /* BLOQUE GENERAL */
         ----------------------------------------------------------------------------------------------------------------------------------
 
+        DECLARE @Proceso VARCHAR(128) = 'importar.p_ImportarUnidadFuncional';
+
         DECLARE @BulkInsert NVARCHAR(MAX);
 
-        DECLARE @FilasTotalesCSV INT = 0;
-        DECLARE @FilasInsertadas INT = 0;
-        DECLARE @FilasCorruptas INT = 0;
-        DECLARE @FilasDuplicadas INT = 0;
+        -- variables para reporte XML
+        DECLARE @LeidosDeArchivo INT;
+        DECLARE @Insertados INT;
+        DECLARE @Actualizados INT;
+        DECLARE @DuplicadosEnArchivo INT;
+        DECLARE @DuplicadosEnTabla INT;
+        DECLARE @Corruptos INT;
+        DECLARE @ReporteXML XML;
+        DECLARE @LogID INT;
+
+        SET @ReporteXML = (
+            SELECT @RutaArchivo AS 'NombreArchivo' 
+            FOR XML PATH('ReporteXMLRegistros')
+        );
         
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* ARCHIVO CSV */
+        /* IMPORTACION ARCHIVO CSV */
         ----------------------------------------------------------------------------------------------------------------------------------
 
         PRINT CHAR(10) + '>>> Iniciando el proceso para el archivo';
 
         SET @BulkInsert = N'
             BULK INSERT #UnidadFuncionalCSVTemp
-            FROM ''' + @RutaArchivoCSV + '''
+            FROM ''' + @RutaArchivo + '''
             WITH (
                 FIELDTERMINATOR = ''\t'',
                 ROWTERMINATOR = ''0x0d0a'',     -- según notepad es Windows CR LF, este sería el salto de línea ''\r\n''
@@ -67,9 +82,7 @@ BEGIN
             );';
         
         EXEC sp_executesql @BulkInsert;
-
-        SELECT @FilasTotalesCSV = COUNT(*) FROM #UnidadFuncionalCSVTemp;
-        PRINT  CHAR(10) + '>>> El archivo se cargo en #UnidadFuncionalCSVTemp.' + CHAR(10) + '     Filas totales: ' + CAST(@FilasTotalesCSV AS VARCHAR(10));
+        SET @LeidosDeArchivo = @@ROWCOUNT;
 
         ALTER TABLE #UnidadFuncionalCSVTemp ADD RegistroID INT IDENTITY(1,1);
 
@@ -84,7 +97,7 @@ BEGIN
                 TRY_CAST(NroUnidadFuncional AS INT) AS NroUnidadFuncionalID,
                 CAST(UPPER(LTRIM(RTRIM(Piso))) AS CHAR(2)) AS Piso,
                 CAST(UPPER(LTRIM(RTRIM(Departamento))) AS CHAR(1)) AS Departamento,
-                TRY_CAST(REPLACE(Coeficiente, ',', '.') AS DECIMAL(2,1)) AS Coeficiente,
+                TRY_CAST(REPLACE(Coeficiente, ',', '.') AS DECIMAL(3,1)) AS Coeficiente,
                 TRY_CAST(M2UnidadFuncional AS DECIMAL(6,2)) AS Superficie,
                 LTRIM(RTRIM(Bauleras)) AS Bauleras, 
                 LTRIM(RTRIM(Cochera)) AS Cochera,
@@ -107,18 +120,8 @@ BEGIN
             ((CTE.Cochera = 'NO' AND CTE.SuperficieCochera = 0) OR (CTE.Cochera = 'SI' AND CTE.SuperficieCochera > 0));
             -- en las dos anteriores comprobamos que sea consistente la afirmacion/negacion con los valores entregados (doble confirmacion)
 
-        -- informamos que un registro fue rechazado por corrupto
-        SELECT Temp.*,
-            CASE 
-                WHEN Limpio.RegistroID IS NULL THEN 'Rechazado: Corrupto'
-                ELSE 'Rechazado: Duplicado en el archivo'
-            END AS Estado
-        FROM #UnidadFuncionalCSVTemp AS Temp
-        LEFT JOIN #UnidadFuncionalLimpio AS Limpio
-            ON Temp.RegistroID = Limpio.RegistroID
-        WHERE -- se muestran los que no estan en la tabla limpia o los que estan duplicados en el archivo
-            Limpio.RegistroID IS NULL
-            OR Limpio.CantApariciones > 1;
+        SET @Corruptos = @LeidosDeArchivo - @@ROWCOUNT;
+        SET @DuplicadosEnArchivo = (SELECT COUNT(*) FROM #UnidadFuncionalLimpio WHERE CantApariciones > 1);
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* UPDATE DE FILAS DE LA TABLA FISICA infraestructura.UnidadFuncional */
@@ -141,16 +144,27 @@ BEGIN
             UnidadFuncional.Superficie <> Limpio.Superficie OR
             UnidadFuncional.SuperficieBaulera <> Limpio.SuperficieBaulera OR
             UnidadFuncional.SuperficieCochera <> Limpio.SuperficieCochera;
+        SET @Actualizados = @@ROWCOUNT;
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* INSERT DE FILAS NUEVAS EN LA TABLA FISICA infraestructura.UnidadFuncional */
         ----------------------------------------------------------------------------------------------------------------------------------
         
 
-        INSERT INTO infraestructura.UnidadFuncional (NroUnidadFuncionalID, ConsorcioID, Piso, Departamento, Superficie, SuperficieBaulera, SuperficieCochera, Coeficiente)
+        INSERT INTO infraestructura.UnidadFuncional (
+            NroUnidadFuncionalID,
+            ConsorcioID,
+            PropietarioID,
+            Piso,
+            Departamento,
+            Superficie,
+            SuperficieBaulera,
+            SuperficieCochera,
+            Coeficiente)
         SELECT
             Limpio.NroUnidadFuncionalID,
             Consorcio.ConsorcioID,
+            1, --corresponde al propietario indeterminado
             Limpio.Piso,
             Limpio.Departamento,
             Limpio.Superficie,
@@ -172,37 +186,50 @@ BEGIN
                     UnidadFuncional.ConsorcioID = Consorcio.ConsorcioID
             )  
 
-        SET @FilasInsertadas = @@ROWCOUNT; -- la cantidad de filas que fueron afectadas por el INSERT
-        SET @FilasDuplicadas = @FilasTotalesCSV - @FilasInsertadas - @FilasCorruptas;
+        SET @Insertados = @@ROWCOUNT;
+        SET @DuplicadosEnTabla = @LeidosDeArchivo - @Insertados - @Corruptos;
 
-        EXEC general.p_RegistrarLogImportacion
-            @NombreImportacion = 'infraestructura.UnidadFuncional',
-            @FilasInsertadas = @FilasInsertadas,
-            @FilasDuplicadas = @FilasDuplicadas,
-            @FilasCorruptas = @FilasCorruptas,
-            @Detalle = 'Proceso completado con normalidad.',
-            @MostrarPorConsola = 1;   
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'INFO',
+            @Mensaje = 'Proceso de importacion de unidades funcionales completado',
+            @ReporteXML = @ReporteXML,
+            @LogIDOut = @LogID OUTPUT; -- obtenemos el PK LogID generado en la insercion
+
+        INSERT INTO general.LogRegistroRechazado (LogID, Motivo, RegistroXML)
+        SELECT
+            @LogID,
+            CASE 
+                WHEN Limpio.RegistroID IS NULL THEN 'CORRUPTO'
+                ELSE 'DUPLICADO EN ARCHIVO'
+            END,
+            (
+                SELECT 
+                    Temp.NombreDelConsorcio,
+                    Temp.NroUnidadFuncional,
+                    Temp.Departamento,
+                    Temp.Coeficiente,
+                    Temp.M2UnidadFuncional,
+                    Temp.Bauleras,
+                    Temp.Cochera,
+                    Temp.M2Baulera,
+                    Temp.M2Cochera
+                FOR XML PATH('FilaRechazada'), TYPE -- TYPE genera el reporte XML de forma nativa y no como un texto concatenado
+            )
+        FROM #UnidadFuncionalCSVTemp AS Temp
+        LEFT JOIN #UnidadFuncionalLimpio AS Limpio ON Temp.RegistroID = Limpio.RegistroID
+        WHERE Limpio.RegistroID IS NULL OR Limpio.CantApariciones > 1;   
 
     END TRY
     BEGIN CATCH
       
-        EXEC general.p_RegistrarLogImportacion
-            @NombreImportacion = 'infraestructura.UnidadFuncional',
-            @FilasInsertadas = @FilasInsertadas,
-            @FilasDuplicadas = @FilasDuplicadas,
-            @FilasCorruptas = @FilasCorruptas,
-            @Detalle = 'Error: No se pudo cargar el archivo CSV.',
-            @MostrarPorConsola = 1;
-
-        DECLARE @ErrorMessage NVARCHAR(4000);
-        SELECT @ErrorMessage = ERROR_MESSAGE()
-        PRINT @ErrorMessage;
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'ERROR',
+            @Mensaje = 'Fallo la importacion';
     
     END CATCH
 
-    PRINT CHAR(10) + '============== FIN DE p_ImportarInquilinoPropietariosUF ==============';
-
-    DROP TABLE IF EXISTS #UnidadFuncionalCSVTemp;
-    DROP TABLE IF EXISTS #UnidadFuncionalLimpio;
+    PRINT CHAR(10) + '============== FIN DE p_ImportarUnidadFuncional ==============';
 END
 GO    

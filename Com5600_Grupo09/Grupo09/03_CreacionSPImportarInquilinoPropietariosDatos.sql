@@ -15,15 +15,19 @@
 USE Com5600G09;
 GO
 
-CREATE OR ALTER PROCEDURE importar.p_ImportarHabitantesYCuentasBancarias
-    @RutaArchivoCSV VARCHAR(260)
+CREATE OR ALTER PROCEDURE importar.p_ImportarPersonasYCuentasBancarias
+    @RutaArchivo VARCHAR(260)
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    PRINT CHAR(10) + '============== INCIO DE p_ImportarHabitantesYCuentasBancarias ==============';
+    PRINT CHAR(10) + '============== INCIO DE p_ImportarPersonasYCuentasBancarias ==============';
 
-    CREATE TABLE #HabitanteYCuentaCSVTemp (
+    DROP TABLE IF EXISTS #PersonaYCuentaCSVTemp;
+    DROP TABLE IF EXISTS #PersonaYCuentaLimpio;
+    DROP TABLE IF EXISTS #PersonasPropInq;
+
+    CREATE TABLE #PersonaYCuentaCSVTemp (
         Nombre VARCHAR(255) COLLATE Latin1_General_CI_AI,
         Apellido VARCHAR(255) COLLATE Latin1_General_CI_AI, 
         DNI VARCHAR(255) COLLATE Latin1_General_CI_AI,
@@ -39,15 +43,27 @@ BEGIN
         /* BLOQUE GENERAL */
         ----------------------------------------------------------------------------------------------------------------------------------
 
+        DECLARE @Proceso VARCHAR(128) = 'importar.p_ImportarPersonasYCuentasBancarias';
+
         DECLARE @BulkInsert NVARCHAR(MAX);
 
-        DECLARE @FilasTotalesCSV INT = 0;
-        DECLARE @FilasInsertadas INT = 0;
-        DECLARE @FilasCorruptas INT = 0;
-        DECLARE @FilasDuplicadas INT = 0;
+        -- variables para reporte XML
+        DECLARE @LeidosDeArchivo INT;
+        DECLARE @Insertados INT;
+        DECLARE @Actualizados INT;
+        DECLARE @DuplicadosEnArchivo INT;
+        DECLARE @DuplicadosEnTabla INT;
+        DECLARE @Corruptos INT;
+        DECLARE @ReporteXML XML;
+        DECLARE @LogID INT;
+
+        SET @ReporteXML = (
+            SELECT @RutaArchivo AS 'NombreArchivo' 
+            FOR XML PATH('ReporteXMLRegistros')
+        );
         
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* ARCHIVO CSV */
+        /* IMPORTACION ARCHIVO CSV */
         ----------------------------------------------------------------------------------------------------------------------------------
 
         PRINT CHAR(10) + '>>> Iniciando el proceso para el archivo';
@@ -55,8 +71,8 @@ BEGIN
         /** Excel al ver numeros grandes, como el CBU/CVU, lo transoforma en notacion decimal daniando permanentemente
         la informacion de esa columna. El archivo .csv no debe ser manipulado previamente. **/
         SET @BulkInsert = N'
-            BULK INSERT #HabitanteYCuentaCSVTemp
-            FROM ''' + @RutaArchivoCSV + '''
+            BULK INSERT #PersonaYCuentaCSVTemp
+            FROM ''' + @RutaArchivo + '''
             WITH (
                 FIELDTERMINATOR = '';'',
                 ROWTERMINATOR = ''0x0d0a'', -- según notepad es Windows CR LF, este sería el salto de línea ''\r\n''
@@ -65,11 +81,9 @@ BEGIN
             );';
         
         EXEC sp_executesql @BulkInsert;
+        SET @LeidosDeArchivo = @@ROWCOUNT;
 
-        SELECT @FilasTotalesCSV = COUNT(*) FROM #HabitanteYCuentaCSVTemp;
-        PRINT  CHAR(10) + '>>> El archivo se cargo en #HabitanteYCuentaCSVTemp.' + CHAR(10) + '     Filas totales: ' + CAST(@FilasTotalesCSV AS VARCHAR(10));
-
-        ALTER TABLE #HabitanteYCuentaCSVTemp ADD RegistroID INT IDENTITY(1,1);
+        ALTER TABLE #PersonaYCuentaCSVTemp ADD RegistroID INT IDENTITY(1,1);
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* NORMALIZACION Y FILTRADO */
@@ -85,11 +99,11 @@ BEGIN
                 general.f_NormalizarTelefono(Telefono) AS Telefono,
                 CASE WHEN general.f_RemoverBlancos(CvuCbu) LIKE '%[^0-9]%' THEN NULL ELSE CAST(general.f_RemoverBlancos(CvuCbu) AS VARCHAR(22)) END AS NroClaveUniforme,
                 TRY_CAST(Inquilino AS BIT) AS EsInquilino
-            FROM #HabitanteYCuentaCSVTemp
+            FROM #PersonaYCuentaCSVTemp
         )
         SELECT *, -- con ROW_NUMBER cuento la cantidad de veces que se repiten registros con mismo dni nombre y apellido
         ROW_NUMBER() OVER (PARTITION BY DNI, Nombre, Apellido ORDER BY RegistroID) AS CantApariciones 
-        INTO #HabitanteYCuentaLimpio
+        INTO #PersonaYCuentaLimpio
         FROM CTE
         WHERE
             CTE.DNI IS NOT NULL AND
@@ -98,95 +112,163 @@ BEGIN
             NULLIF(CTE.Telefono, '') IS NOT NULL AND
             NULLIF(CTE.NroClaveUniforme, '') IS NOT NULL;
 
-        SET @FilasCorruptas = @FilasTotalesCSV - @@ROWCOUNT;
-
-        -- informamos que un registro fue rechazado por corrupto
-        SELECT Temp.*,
-            CASE 
-                WHEN Limpio.RegistroID IS NULL THEN 'Rechazado: Corrupto'
-                ELSE 'Rechazado: Duplicado en el archivo'
-            END AS Estado
-        FROM #HabitanteYCuentaCSVTemp AS Temp
-        LEFT JOIN #HabitanteYCuentaLimpio AS Limpio
-            ON Temp.RegistroID = Limpio.RegistroID
-        WHERE -- se muestran los que no estan en la tabla limpia o los que estan duplicados en el archivo
-            Limpio.RegistroID IS NULL
-            OR Limpio.CantApariciones > 1;
-
+        SET @Corruptos = @LeidosDeArchivo - @@ROWCOUNT;
+        SET @DuplicadosEnArchivo = (SELECT COUNT(*) FROM #PersonaYCuentaLimpio WHERE CantApariciones > 1);
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* UPDATE DE FILAS DE LA TABLA FISICA persona.Habitante */
+        /* UPDATE DE FILAS DE LA TABLA FISICA persona.Persona */
         ----------------------------------------------------------------------------------------------------------------------------------
  
-        UPDATE Habitante
+        UPDATE Persona
         SET -- estos son los campos que considero se deberian poder actualizar
-            Habitante.Mail = Limpio.Mail,
-            Habitante.Telefono = Limpio.Telefono,
-            Habitante.EsInquilino = Limpio.EsInquilino
-        FROM persona.Habitante AS Habitante
-        JOIN #HabitanteYCuentaLimpio AS Limpio
+            Persona.Mail = Limpio.Mail,
+            Persona.Telefono = Limpio.Telefono
+        FROM persona.Persona AS Persona
+        JOIN #PersonaYCuentaLimpio AS Limpio
             ON (
-                Habitante.DNI = Limpio.DNI AND
-                Habitante.Nombre = Limpio.Nombre AND
-                Habitante.Apellido = Limpio.Apellido
+                Persona.DNI = Limpio.DNI AND
+                Persona.Nombre = Limpio.Nombre AND
+                Persona.Apellido = Limpio.Apellido
             )
         WHERE (
-            ISNULL(Habitante.Mail, '') <> ISNULL(Limpio.Mail, '') OR -- ISNULL() permite actualizar en caso de que la primera vez se haya insertado NULL en la tabla
-            ISNULL(Habitante.Telefono, '') <> ISNULL(Limpio.Telefono, '') OR
-            ISNULL(Habitante.EsInquilino, '') <> ISNULL(Limpio.EsInquilino, '')
+            ISNULL(Persona.Mail, '') <> ISNULL(Limpio.Mail, '') OR -- ISNULL() permite actualizar en caso de que la primera vez se haya insertado NULL en la tabla
+            ISNULL(Persona.Telefono, '') <> ISNULL(Limpio.Telefono, '')
         )
+        SET @Actualizados = @@ROWCOUNT;
 
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* INSERT DE FILAS NUEVAS EN LA TABLA FISICA persona.Habitante */
+        /* INSERT DE FILAS NUEVAS EN LA TABLA FISICA persona.Persona */
         ----------------------------------------------------------------------------------------------------------------------------------
         
-        INSERT INTO persona.Habitante (DNI, Nombre, Apellido, Mail, Telefono, EsInquilino)
+        INSERT INTO persona.Persona (DNI, Nombre, Apellido, Mail, Telefono)
         SELECT
             Limpio.DNI,
             Limpio.Nombre,
             Limpio.Apellido,
             Limpio.Mail,
-            Limpio.Telefono,
-            Limpio.EsInquilino -- si no es correcto el valor cal csv, queda indeterminado para futura actualizacion de novedades
-        FROM #HabitanteYCuentaLimpio AS Limpio
+            Limpio.Telefono
+        FROM #PersonaYCuentaLimpio AS Limpio
         WHERE 
             Limpio.CantApariciones = 1 AND-- filtra repetidos en el archivo (mejora la eficiencia al evitar el select)
             NOT EXISTS( -- filtra repetidos en la tabla fisica
                 SELECT 1
-                FROM persona.Habitante AS Habitante
+                FROM persona.Persona AS Persona
                 WHERE
-                    Habitante.DNI = Limpio.DNI AND
-                    Habitante.Nombre = Limpio.Nombre AND
-                    Habitante.Apellido = Limpio.Apellido
+                    Persona.DNI = Limpio.DNI AND
+                    Persona.Nombre = Limpio.Nombre AND
+                    Persona.Apellido = Limpio.Apellido
             )  
+        SET @Insertados = @@ROWCOUNT;
+        SET @DuplicadosEnTabla = @LeidosDeArchivo - @Insertados - @Corruptos;
 
-        SET @FilasInsertadas = @@ROWCOUNT; -- la cantidad de filas que fueron afectadas por el INSERT
-        SET @FilasDuplicadas = @FilasTotalesCSV - @FilasInsertadas - @FilasCorruptas;
+        SELECT * FROM #PersonaYCuentaLimpio;
 
-        EXEC general.p_RegistrarLogImportacion
-            @NombreImportacion = 'persona.Habitante',
-            @FilasInsertadas = @FilasInsertadas,
-            @FilasDuplicadas = @FilasDuplicadas,
-            @FilasCorruptas = @FilasCorruptas,
-            @Detalle = 'Proceso completado con normalidad.',
-            @MostrarPorConsola = 1;
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* INSERT DE persona.Inquilino y persona.Propietario segun corresponda */
+        ----------------------------------------------------------------------------------------------------------------------------------
+
+        SELECT
+            Persona.PersonaID,
+            Limpio.EsInquilino
+        INTO #PersonasPropInq
+        FROM persona.Persona AS Persona
+        JOIN #PersonaYCuentaLimpio AS Limpio
+            ON (
+                Persona.DNI = Limpio.DNI AND
+                Persona.Nombre = Limpio.Nombre AND
+                Persona.Apellido = Limpio.Apellido
+            );
+
+        INSERT INTO persona.Inquilino(PersonaID)
+        SELECT #PersonasPropInq.PersonaID FROM #PersonasPropInq
+        WHERE 
+            #PersonasPropInq.EsInquilino = 1 AND 
+            NOT EXISTS (
+                SELECT 1
+                FROM persona.Inquilino
+                WHERE persona.Inquilino.PersonaID = #PersonasPropInq.PersonaID
+            );
+
+        INSERT INTO persona.Propietario(PersonaID)
+        SELECT #PersonasPropInq.PersonaID FROM #PersonasPropInq
+        WHERE 
+            #PersonasPropInq.EsInquilino = 0 AND
+            NOT EXISTS (
+                SELECT 1
+                FROM persona.Propietario
+                WHERE persona.Propietario.PersonaID = #PersonasPropInq.PersonaID
+            );
+
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* REPORTE Y LOG persona.Persona, persona.Inquilino, persona.Propietario */
+        ----------------------------------------------------------------------------------------------------------------------------------
+
+        SET @ReporteXML = (
+            SELECT 
+                @LeidosDeArchivo AS 'LeidosArchivo',
+                @Insertados AS 'Insertados',
+                @Actualizados AS 'Actualizados',
+                @DuplicadosEnArchivo AS 'DuplicadosArchivo',
+                @DuplicadosEnTabla AS 'DuplicadosTabla',
+                @Corruptos AS 'Corruptos'
+            FOR XML PATH('ReporteXMLRegistros')
+        );
+
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'INFO',
+            @Mensaje = 'Proceso de importacion de personas completado',
+            @ReporteXML = @ReporteXML,
+            @LogIDOut = @LogID OUTPUT; -- obtenemos el PK LogID generado en la insercion
+
+
+        INSERT INTO general.LogRegistroRechazado (LogID, Motivo, RegistroXML)
+        SELECT
+            @LogID,
+            CASE 
+                WHEN Limpio.RegistroID IS NULL THEN 'CORRUPTO'
+                ELSE 'DUPLICADO EN ARCHIVO'
+            END,
+            (
+                SELECT 
+                    Temp.Nombre,
+                    Temp.Apellido,
+                    Temp.DNI,
+                    Temp.EmailPersonal,
+                    Temp.Telefono,
+                    Temp.CvuCbu,
+                    Temp.Inquilino
+                FOR XML PATH('FilaRechazada'), TYPE -- TYPE genera el reporte XML de forma nativa y no como un texto concatenado
+            )
+        FROM #PersonaYCuentaCSVTemp AS Temp
+        LEFT JOIN #PersonaYCuentaLimpio AS Limpio ON Temp.RegistroID = Limpio.RegistroID
+        WHERE Limpio.RegistroID IS NULL OR Limpio.CantApariciones > 1;
+
+        ----------------------------------------------------------------------------------------------------------------------------------
+
+
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* UPDATE DE FILAS DE LA TABLA FISICA persona.CuentaBancaria */
         ----------------------------------------------------------------------------------------------------------------------------------
         
         -- La tabla de cuenta bancaria no tiene campos que se deban actualizar --
+        SET @Actualizados = 0;
 
         ----------------------------------------------------------------------------------------------------------------------------------
         /* INSERT DE FILAS NUEVAS EN LA TABLA FISICA persona.CuentaBancaria */
         ----------------------------------------------------------------------------------------------------------------------------------
 
-        INSERT INTO persona.CuentaBancaria (NroClaveUniformeID, DNI, Nombre, Apellido)
+        INSERT INTO persona.CuentaBancaria (NroClaveUniformeID, PersonaID)
         SELECT DISTINCT
             Limpio.NroClaveUniforme,
-            Limpio.DNI,
-            Limpio.Nombre,
-            Limpio.Apellido
-        FROM #HabitanteYCuentaLimpio AS Limpio
+            Persona.PersonaID
+        FROM #PersonaYCuentaLimpio AS Limpio
+        JOIN persona.Persona AS Persona
+            ON (
+                Persona.DNI = Limpio.DNI AND
+                Persona.Nombre = Limpio.Nombre AND
+                Persona.Apellido = Limpio.Apellido
+            )
         WHERE 
             Limpio.CantApariciones = 1 AND-- filtra repetidos en el archivo (mejora la eficiencia al evitar el select)
             NOT EXISTS( -- filtra repetidos en la tabla fisica
@@ -195,40 +277,41 @@ BEGIN
                 WHERE
                     CuentaBancaria.NroClaveUniformeID = Limpio.NroClaveUniforme
             ) 
+        SET @Insertados = @@ROWCOUNT;
 
-        SET @FilasInsertadas = @@ROWCOUNT; -- la cantidad de filas que fueron afectadas por el INSERT
-        SET @FilasDuplicadas = @FilasTotalesCSV - @FilasInsertadas - @FilasCorruptas;
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* REPORTE Y LOG persona.CuentaBancaria */
+        ----------------------------------------------------------------------------------------------------------------------------------
 
-        EXEC general.p_RegistrarLogImportacion
-            @NombreImportacion = 'persona.CuentaBancaria',
-            @FilasInsertadas = @FilasInsertadas,
-            @FilasDuplicadas = @FilasDuplicadas,
-            @FilasCorruptas = @FilasCorruptas,
-            @Detalle = 'Proceso completado con normalidad.',
-            @MostrarPorConsola = 1;
+        SET @ReporteXML = (
+            SELECT 
+                @LeidosDeArchivo AS 'LeidosArchivo',
+                @Insertados AS 'Insertados',
+                @Actualizados AS 'Actualizados',
+                @DuplicadosEnArchivo AS 'DuplicadosArchivo',
+                @DuplicadosEnTabla AS 'DuplicadosTabla',
+                @Corruptos AS 'Corruptos'
+            FOR XML PATH('ReporteXMLRegistros')
+        );
+
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'INFO',
+            @Mensaje = 'Proceso de importacion de cuentas bancarias completado',
+            @ReporteXML = @ReporteXML;
 
         ----------------------------------------------------------------------------------------------------------------------------------
 
     END TRY
     BEGIN CATCH
       
-        EXEC general.p_RegistrarLogImportacion
-            @NombreImportacion = 'persona.Habitante',
-            @FilasInsertadas = @FilasInsertadas,
-            @FilasDuplicadas = @FilasDuplicadas,
-            @FilasCorruptas = @FilasCorruptas,
-            @Detalle = 'Error: No se pudo cargar el archivo CSV.',
-            @MostrarPorConsola = 1;
-
-        DECLARE @ErrorMessage NVARCHAR(4000);
-        SELECT @ErrorMessage = ERROR_MESSAGE()
-        PRINT @ErrorMessage;
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'ERROR',
+            @Mensaje = 'Fallo la importación';
     
     END CATCH
 
-    PRINT CHAR(10) + '============== FIN DE p_ImportarHabitantesYCuentasBancarias ==============';
-
-    DROP TABLE IF EXISTS #HabitanteYCuentaCSVTemp;
-    DROP TABLE IF EXISTS #HabitanteYCuentaLimpio;
+    PRINT CHAR(10) + '============== FIN DE p_ImportarPersonasYCuentasBancarias ==============';
 END
 GO
