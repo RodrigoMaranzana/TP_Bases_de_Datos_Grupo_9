@@ -77,6 +77,7 @@ CREATE TABLE persona.Persona(
 	Apellido VARCHAR(255),
 	Mail VARCHAR(255),
 	Telefono VARCHAR(20),
+	EsPropietario BIT NOT NULL,
 
 	CONSTRAINT UQ_Persona_Unica
 		UNIQUE (DNI, Nombre, Apellido), -- no permitimos el ingreso si los 3 son iguales
@@ -89,26 +90,6 @@ CREATE TABLE persona.Persona(
 
 	CONSTRAINT CK_Persona_DNIValido -- normalizado con funcion, CHECK para integridad
 		CHECK (DNI >= 0 AND DNI < 100000000),
-);
-GO
-
-
-CREATE TABLE persona.Propietario(
-	PropietarioID INT IDENTITY(1,1) PRIMARY KEY,
-	PersonaID INT NOT NULL UNIQUE, 
-
-	CONSTRAINT FK_Propietario_Persona
-		FOREIGN KEY (PersonaID) REFERENCES persona.Persona(PersonaID)
-);
-GO
-
-
-CREATE TABLE persona.Inquilino(
-	InquilinoID INT IDENTITY(1,1) PRIMARY KEY,
-	PersonaID INT NOT NULL UNIQUE,
-
-	CONSTRAINT FK_Inquilino_Persona
-		FOREIGN KEY (PersonaID) REFERENCES persona.Persona(PersonaID)
 );
 GO
 
@@ -129,6 +110,7 @@ GO
 CREATE TABLE infraestructura.UnidadFuncional(
 	NroUnidadFuncionalID INT,
 	ConsorcioID INT  NOT NULL,
+	NroClaveUniformeID CHAR(22),
 	PropietarioID INT NOT NULL,
 	InquilinoID INT,
 	Piso CHAR(2) NOT NULL,
@@ -144,11 +126,14 @@ CREATE TABLE infraestructura.UnidadFuncional(
 	CONSTRAINT FK_UnidadFuncional_Consorcio
 		FOREIGN KEY (ConsorcioID) REFERENCES infraestructura.Consorcio(ConsorcioID),
 
-	CONSTRAINT FK_UnidadFuncional_Propietario
-		FOREIGN KEY (PropietarioID) REFERENCES persona.Propietario(PropietarioID),
+	CONSTRAINT FK_UnidadFuncional_CuentaBancaria
+		FOREIGN KEY (NroClaveUniformeID) REFERENCES persona.CuentaBancaria(NroClaveUniformeID),
 
-	CONSTRAINT FK_UnidadFuncional_Inquilino
-		FOREIGN KEY (InquilinoID) REFERENCES persona.Inquilino(InquilinoID),
+	CONSTRAINT FK_UnidadFuncionalPro_Persona
+		FOREIGN KEY (PropietarioID) REFERENCES persona.Persona(PersonaID),
+
+	CONSTRAINT FK_UnidadFuncionalInq_Persona
+		FOREIGN KEY (InquilinoID) REFERENCES persona.Persona(PersonaID),
 
 	CONSTRAINT UQ_UnidadFuncional_DepartamentoPorPisoUnico
 		UNIQUE (ConsorcioID, Piso, Departamento),
@@ -185,13 +170,23 @@ GO
 CREATE TABLE contable.GastoOrdinario(
 	GastoOrdinarioID INT IDENTITY(1,1) PRIMARY KEY,
 	Periodo DATE NOT NULL,
-	Categoria VARCHAR(32) NOT NULL,
+	Categoria CHAR(24) NOT NULL,
 	ConsorcioID INT NOT NULL,
 	Importe DECIMAL(12,2) NOT NULL CHECK (Importe >= 0),
 
 	CONSTRAINT FK_GastoOrdinario_Consorcio FOREIGN KEY (ConsorcioID) REFERENCES infraestructura.Consorcio(ConsorcioID),
 
 	CONSTRAINT UQ_GastoOrdinario_GastoUnicoPorPeriodo UNIQUE (Periodo, Categoria, ConsorcioID)
+
+	CONSTRAINT CK_GastoOrdinario_CategoriaValida CHECK (
+    Categoria IN (
+        'GASTOS BANCARIOS', 
+        'GASTOS DE ADMINISTRACION', 
+        'SEGUROS', 
+        'SERVICIOS PUBLICOS', 
+        'GASTOS DE LIMPIEZA'
+        -- categorias del archivo
+    ))
 );
 GO
 
@@ -245,15 +240,10 @@ GO
 CREATE TABLE contable.Pago(
 	PagoID INT IDENTITY(10000,1) PRIMARY KEY,
 	Fecha DATE NOT NULL,
-	ConsorcioID INT,
 	NroClaveUniformeID CHAR(22) NOT NULL,
-	NroUnidadFuncionalID INT,
 	Importe DECIMAL(12,2) NOT NULL CHECK (Importe > 0),
 
 	CONSTRAINT FK_Pago_CuentaBancaria FOREIGN KEY (NroClaveUniformeID) REFERENCES persona.CuentaBancaria(NroClaveUniformeID),
-
-	CONSTRAINT FK_Pago_UnidadFuncional FOREIGN KEY (ConsorcioID, NroUnidadFuncionalID) 
-		REFERENCES infraestructura.UnidadFuncional(ConsorcioID, NroUnidadFuncionalID)
 );
 GO
 
@@ -263,7 +253,7 @@ CREATE TABLE contable.Prorrateo(
 
 	ConsorcioID INT NOT NULL,
 	NroUnidadFuncionalID INT NOT NULL,
-	PropietarioID INT NOT NULL,
+	PersonaID INT NOT NULL,
 
 	Periodo DATE NOT NULL,
 	FechaVencimiento1 DATE NOT NULL,
@@ -295,7 +285,7 @@ CREATE TABLE contable.Prorrateo(
 	CONSTRAINT FK_Prorrateo_UnidadFuncional FOREIGN KEY  (ConsorcioID, NroUnidadFuncionalID) 
 		REFERENCES infraestructura.UnidadFuncional(ConsorcioID, NroUnidadFuncionalID) ,
 
-	CONSTRAINT FK_Prorrateo_Propietario FOREIGN KEY (PropietarioID) REFERENCES persona.Propietario(PropietarioID),
+	CONSTRAINT FK_Prorrateo_Persona FOREIGN KEY (PersonaID) REFERENCES persona.Persona(PersonaID),
 
 	CONSTRAINT UQ_Prorrateo_ProrrateoUnicoPorPeriodoPorUF UNIQUE (Periodo, NroUnidadFuncionalID, ConsorcioID)
 );
@@ -526,34 +516,20 @@ GO
 	/* INSERT DE REGISTROS DE CONTROL */
 ----------------------------------------------------------------------------------------------------------------------------------
 
-/** Los archivos maestros solo incluyen o un propietario o un inquilino para cada Unidad Funcional
-	Si solo vinculamos a uno de ellos a la UF, cuando una UF este alquilada el sistema no podria
-	dividir el cobro de las expensas extraordinarias, por solo conocer la Clave Uniforme del inquilino.
-	Debido a la situación que plantea todo este escenario, el consorcio no deberia poder permitirse
-	la espera de la carga de los propietarios para comenzar a cobrar las expensas ordinarias que además
-	representan la mayor parte de los gastos del consorcio, ya que las extraordinarios tienen montos
-	considerablemente menores. Por esta razón consideramos que la mejor estrategia es tener los datos
-	de forma opeativa lo antes posible para que el consorcio pueda comenzar a administrar correctamente
-	los pagos. La deuda de las expensas extraordinarias de las UF alquiladas puede acumularse durante
-	la espera de la actualización de los propietarios faltantes.
-**/
-
 INSERT INTO persona.Persona (
 	DNI,
 	Nombre,
 	Apellido,
 	Mail,
-	Telefono
+	Telefono,
+	EsPropietario
 	)
 VALUES (
 	0,
 	'PROPIETARIO',
 	'INDETERMINADO',
 	NULL,
-	NULL
+	NULL,
+	1
 );
-GO
-
-INSERT INTO persona.Propietario(PersonaID)
-VALUES (1);
 GO

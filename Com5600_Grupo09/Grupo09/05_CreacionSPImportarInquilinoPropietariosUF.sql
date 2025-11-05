@@ -98,9 +98,8 @@ BEGIN
             CTEFormato.NroClaveUniforme,
             UnidadFuncional.ConsorcioID,
             UnidadFuncional.NroUnidadFuncionalID,
-            CuentaBancaria.PersonaID,
-            Propietario.PropietarioID,
-            Inquilino.InquilinoID,
+            Persona.PersonaID,
+            Persona.EsPropietario,
             ROW_NUMBER() OVER (
                 PARTITION BY
                     UnidadFuncional.ConsorcioID,
@@ -115,10 +114,8 @@ BEGIN
             ON UnidadFuncional.ConsorcioID = Consorcio.ConsorcioID AND CTEFormato.NombreDelConsorcio = Consorcio.NombreDelConsorcio
         JOIN persona.CuentaBancaria AS CuentaBancaria
             ON CTEFormato.NroClaveUniforme = CuentaBancaria.NroClaveUniformeID
-        LEFT JOIN persona.Propietario AS Propietario
-            ON CuentaBancaria.PersonaID = Propietario.PersonaID
-        LEFT JOIN persona.Inquilino AS Inquilino
-            ON CuentaBancaria.PersonaID = Inquilino.PersonaID
+        JOIN persona.Persona AS Persona
+            ON CuentaBancaria.PersonaID = Persona.PersonaID
         WHERE CTEFormato.NroClaveUniforme IS NOT NULL;
 
         SET @Corruptos = @LeidosDeArchivo - @@ROWCOUNT;
@@ -131,24 +128,26 @@ BEGIN
         -- las tablas Propietarios y Inquilinos obtenemos de que tipo es esa persona para una unidad funcional de un consorcio especifico
 
         UPDATE UnidadFuncional
-        SET UnidadFuncional.PropietarioID = Limpio.PropietarioID
+        SET 
+            UnidadFuncional.PropietarioID = Limpio.PersonaID,
+            UnidadFuncional.NroClaveUniformeID = Limpio.NroClaveUniforme -- Asignamos CBU del propietario
         FROM infraestructura.UnidadFuncional AS UnidadFuncional
         JOIN #ClaveUniformePorUFLimpio AS Limpio 
             ON UnidadFuncional.ConsorcioID = Limpio.ConsorcioID AND UnidadFuncional.NroUnidadFuncionalID = Limpio.NroUnidadFuncionalID
         WHERE 
-            Limpio.PropietarioID IS NOT NULL
-            AND UnidadFuncional.PropietarioID <> Limpio.PropietarioID;
+            Limpio.EsPropietario = 1;
         
         SET @UFPropietariosActualizados = @@ROWCOUNT;
 
         UPDATE UnidadFuncional
-        SET UnidadFuncional.InquilinoID = Limpio.InquilinoID
+        SET 
+            UnidadFuncional.InquilinoID = Limpio.PersonaID,
+            UnidadFuncional.NroClaveUniformeID = Limpio.NroClaveUniforme
         FROM infraestructura.UnidadFuncional AS UnidadFuncional
         JOIN #ClaveUniformePorUFLimpio AS Limpio 
             ON UnidadFuncional.ConsorcioID = Limpio.ConsorcioID AND UnidadFuncional.NroUnidadFuncionalID = Limpio.NroUnidadFuncionalID
         WHERE 
-            Limpio.InquilinoID IS NOT NULL
-            AND ISNULL(UnidadFuncional.InquilinoID, 0) <> Limpio.InquilinoID;
+            Limpio.EsPropietario = 0;
 
         SET @UFInquilinosActualizados = @@ROWCOUNT;
 

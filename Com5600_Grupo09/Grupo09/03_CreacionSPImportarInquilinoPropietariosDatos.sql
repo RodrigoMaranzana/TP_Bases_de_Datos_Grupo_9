@@ -119,9 +119,10 @@ BEGIN
         ----------------------------------------------------------------------------------------------------------------------------------
  
         UPDATE Persona
-        SET -- estos son los campos que considero se deberian poder actualizar
+        SET 
             Persona.Mail = Limpio.Mail,
-            Persona.Telefono = Limpio.Telefono
+            Persona.Telefono = Limpio.Telefono,
+            Persona.EsPropietario = CASE WHEN Limpio.EsInquilino = 1 THEN 0 ELSE 1 END
         FROM persona.Persona AS Persona
         JOIN #PersonaYCuentaLimpio AS Limpio
             ON (
@@ -130,8 +131,9 @@ BEGIN
                 Persona.Apellido = Limpio.Apellido
             )
         WHERE (
-            ISNULL(Persona.Mail, '') <> ISNULL(Limpio.Mail, '') OR -- ISNULL() permite actualizar en caso de que la primera vez se haya insertado NULL en la tabla
-            ISNULL(Persona.Telefono, '') <> ISNULL(Limpio.Telefono, '')
+            ISNULL(Persona.Mail, '') <> ISNULL(Limpio.Mail, '') OR 
+            ISNULL(Persona.Telefono, '') <> ISNULL(Limpio.Telefono, '') OR
+            Persona.EsPropietario <> (CASE WHEN Limpio.EsInquilino = 1 THEN 0 ELSE 1 END) -- Comparamos el nuevo campo
         )
         SET @Actualizados = @@ROWCOUNT;
 
@@ -139,13 +141,14 @@ BEGIN
         /* INSERT DE FILAS NUEVAS EN LA TABLA FISICA persona.Persona */
         ----------------------------------------------------------------------------------------------------------------------------------
         
-        INSERT INTO persona.Persona (DNI, Nombre, Apellido, Mail, Telefono)
+        INSERT INTO persona.Persona (DNI, Nombre, Apellido, Mail, Telefono, EsPropietario)
         SELECT
             Limpio.DNI,
             Limpio.Nombre,
             Limpio.Apellido,
             Limpio.Mail,
-            Limpio.Telefono
+            Limpio.Telefono,
+            CASE WHEN Limpio.EsInquilino = 1 THEN 0 ELSE 1 END AS EsPropietario
         FROM #PersonaYCuentaLimpio AS Limpio
         WHERE 
             Limpio.CantApariciones = 1 AND-- filtra repetidos en el archivo (mejora la eficiencia al evitar el select)
@@ -163,43 +166,7 @@ BEGIN
         SELECT * FROM #PersonaYCuentaLimpio;
 
         ----------------------------------------------------------------------------------------------------------------------------------
-        /* INSERT DE persona.Inquilino y persona.Propietario segun corresponda */
-        ----------------------------------------------------------------------------------------------------------------------------------
-
-        SELECT
-            Persona.PersonaID,
-            Limpio.EsInquilino
-        INTO #PersonasPropInq
-        FROM persona.Persona AS Persona
-        JOIN #PersonaYCuentaLimpio AS Limpio
-            ON (
-                Persona.DNI = Limpio.DNI AND
-                Persona.Nombre = Limpio.Nombre AND
-                Persona.Apellido = Limpio.Apellido
-            );
-
-        INSERT INTO persona.Inquilino(PersonaID)
-        SELECT #PersonasPropInq.PersonaID FROM #PersonasPropInq
-        WHERE 
-            #PersonasPropInq.EsInquilino = 1 AND 
-            NOT EXISTS (
-                SELECT 1
-                FROM persona.Inquilino
-                WHERE persona.Inquilino.PersonaID = #PersonasPropInq.PersonaID
-            );
-
-        INSERT INTO persona.Propietario(PersonaID)
-        SELECT #PersonasPropInq.PersonaID FROM #PersonasPropInq
-        WHERE 
-            #PersonasPropInq.EsInquilino = 0 AND
-            NOT EXISTS (
-                SELECT 1
-                FROM persona.Propietario
-                WHERE persona.Propietario.PersonaID = #PersonasPropInq.PersonaID
-            );
-
-        ----------------------------------------------------------------------------------------------------------------------------------
-        /* REPORTE Y LOG persona.Persona, persona.Inquilino, persona.Propietario */
+        /* REPORTE Y LOG persona.Persona */
         ----------------------------------------------------------------------------------------------------------------------------------
 
         SET @ReporteXML = (
