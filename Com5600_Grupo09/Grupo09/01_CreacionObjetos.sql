@@ -176,7 +176,7 @@ CREATE TABLE contable.GastoOrdinario(
 
 	CONSTRAINT FK_GastoOrdinario_Consorcio FOREIGN KEY (ConsorcioID) REFERENCES infraestructura.Consorcio(ConsorcioID),
 
-	CONSTRAINT UQ_GastoOrdinario_GastoUnicoPorPeriodo UNIQUE (Periodo, Categoria, ConsorcioID)
+	CONSTRAINT UQ_GastoOrdinario_GastoUnicoPorPeriodo UNIQUE (Periodo, Categoria, ConsorcioID),
 
 	CONSTRAINT CK_GastoOrdinario_CategoriaValida CHECK (
     Categoria IN (
@@ -241,6 +241,7 @@ CREATE TABLE contable.Pago(
 	PagoID INT IDENTITY(10000,1) PRIMARY KEY,
 	Fecha DATE NOT NULL,
 	NroClaveUniformeID CHAR(22) NOT NULL,
+	Concepto CHAR(20) NOT NULL CHECK (Concepto IN ('ORDINARIO','EXTRAORDINARIO')),
 	Importe DECIMAL(12,2) NOT NULL CHECK (Importe > 0),
 
 	CONSTRAINT FK_Pago_CuentaBancaria FOREIGN KEY (NroClaveUniformeID) REFERENCES persona.CuentaBancaria(NroClaveUniformeID),

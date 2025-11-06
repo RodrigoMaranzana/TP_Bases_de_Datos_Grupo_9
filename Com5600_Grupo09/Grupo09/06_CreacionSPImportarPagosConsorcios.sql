@@ -117,11 +117,13 @@ BEGIN
         INSERT INTO contable.Pago (
             Fecha,
             NroClaveUniformeID,
+            Concepto,
             Importe
         )
         SELECT
             Limpio.Fecha,
             Limpio.NroClaveUniforme,
+            'ORDINARIO',
             Limpio.Importe
         FROM #PagosLimpio AS Limpio
         WHERE NOT EXISTS (
