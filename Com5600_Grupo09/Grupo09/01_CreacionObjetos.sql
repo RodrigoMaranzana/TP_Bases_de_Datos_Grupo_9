@@ -159,6 +159,7 @@ CREATE TABLE persona.Servicio(
         'GASTOS BANCARIOS', 
         'GASTOS DE ADMINISTRACION', 
         'SEGUROS', 
+		'GASTOS GENERALES',
         'SERVICIOS PUBLICOS', 
         'GASTOS DE LIMPIEZA'
         -- categorias del archivo
@@ -183,6 +184,7 @@ CREATE TABLE contable.GastoOrdinario(
         'GASTOS BANCARIOS', 
         'GASTOS DE ADMINISTRACION', 
         'SEGUROS', 
+		'GASTOS GENERALES',
         'SERVICIOS PUBLICOS', 
         'GASTOS DE LIMPIEZA'
         -- categorias del archivo

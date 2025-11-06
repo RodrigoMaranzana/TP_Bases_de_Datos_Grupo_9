@@ -26,10 +26,6 @@ EXEC importar.p_ImportarPersonasYCuentasBancarias'C:\Maestros\Inquilino-propieta
 GO
 select * from persona.Persona;
 GO
-select * from persona.Propietario;
-GO
-select * from persona.Inquilino;
-GO
 select * from persona.CuentaBancaria;
 GO
 
@@ -43,8 +39,18 @@ GO
 select * from infraestructura.UnidadFuncional;
 GO
 
-select * from general.Log;
+EXEC importar.p_ImportarPagosConsorcios'C:\Maestros\pagos_consorcios.csv';
+GO
+select * from contable.Pago;
 GO
 
+EXEC importar.p_ImportarGastosOrdinariosJSON'C:\Maestros\Servicios.Servicios.json';
+GO
+select * from contable.GastoOrdinario;
+GO
+
+
+select * from general.Log;
+GO
 select * from general.LogRegistroRechazado;
 GO
