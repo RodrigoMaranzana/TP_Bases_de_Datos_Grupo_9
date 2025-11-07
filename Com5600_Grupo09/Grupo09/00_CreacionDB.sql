@@ -29,10 +29,11 @@ EXEC sp_configure 'Ad Hoc Distributed Queries', 1;
 RECONFIGURE;
 GO
 
-/**********************************
-* Eliminación de la Base de Datos *
-***********************************/
+----------------------------------------------------------------------------------------------------------------------------------
+	/* ELIMINACION DE TODA LA BASE DE DATOS */
+----------------------------------------------------------------------------------------------------------------------------------
 
+/**
 USE master;
 GO
 
@@ -42,22 +43,73 @@ BEGIN
     DROP DATABASE Com5600G09;
 END
 GO
+**/
 
+----------------------------------------------------------------------------------------------------------------------------------
+	/* ELIMINACION DE TABLAS */
+----------------------------------------------------------------------------------------------------------------------------------
 
-/**********************************
-*   Creación de la Base de Datos  
-***********************************/
+DROP TABLE IF EXISTS contable.Prorrateo;
+GO
+DROP TABLE IF EXISTS contable.EstadoFinanciero;
+DROP TABLE IF EXISTS contable.Pago;
+DROP TABLE IF EXISTS contable.Comprobante;
+DROP TABLE IF EXISTS infraestructura.UnidadFuncional;
+DROP TABLE IF EXISTS general.LogRegistroRechazado;
+GO
+DROP TABLE IF EXISTS contable.GastoOrdinario;
+DROP TABLE IF EXISTS contable.GastoExtraordinario;
+DROP TABLE IF EXISTS persona.Servicio;
+DROP TABLE IF EXISTS persona.CuentaBancaria;
+GO
+DROP TABLE IF EXISTS persona.Persona;
+DROP TABLE IF EXISTS infraestructura.Consorcio;
+DROP TABLE IF EXISTS general.Log;
+GO
 
-CREATE DATABASE Com5600G09
-COLLATE Latin1_General_CI_AI;
+----------------------------------------------------------------------------------------------------------------------------------
+	/* ELIMINACION DE FUNCIONES Y STORED PROCEDURES */
+----------------------------------------------------------------------------------------------------------------------------------
+
+DROP PROCEDURE IF EXISTS general.p_RegistrarLog;
+DROP FUNCTION IF EXISTS contable.p_CalcularProrrateoMensual; -- si lo llegaste a crear
+GO
+DROP FUNCTION IF EXISTS general.f_RemoverBlancos;
+DROP FUNCTION IF EXISTS general.f_NormalizarTelefono;
+DROP FUNCTION IF EXISTS general.f_NormalizarDNI;
+DROP FUNCTION IF EXISTS general.f_NormalizarMail;
+DROP FUNCTION IF EXISTS general.f_NormalizarImporte;
+DROP FUNCTION IF EXISTS general.f_NormalizarFecha_DDMMYYYY;
+GO
+
+----------------------------------------------------------------------------------------------------------------------------------
+	/* ELIMINACION DE SCHEMAS */
+----------------------------------------------------------------------------------------------------------------------------------
+
+DROP SCHEMA IF EXISTS importar;
+DROP SCHEMA IF EXISTS infraestructura;
+DROP SCHEMA IF EXISTS persona;
+DROP SCHEMA IF EXISTS contable;
+DROP SCHEMA IF EXISTS general;
+GO
+
+----------------------------------------------------------------------------------------------------------------------------------
+	/* CREACION DE LA BASE DE DATOS */
+----------------------------------------------------------------------------------------------------------------------------------
+
+IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'Com5600G09')
+BEGIN
+    CREATE DATABASE Com5600G09
+    COLLATE Latin1_General_CI_AI;
+END
 GO
 
 USE Com5600G09;
 GO
 
-/**********************************
-*		Creación de Esquemas	  
-***********************************/
+----------------------------------------------------------------------------------------------------------------------------------
+	/* CREACION DE LOS SHCEMAS */
+----------------------------------------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------------------------------------
     /* Esquema para los SP de importación. */
