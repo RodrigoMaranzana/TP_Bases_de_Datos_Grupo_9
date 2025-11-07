@@ -1,0 +1,200 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\Pruebas_EjecutarSPDeImportacion.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:Pruebas_EjecutarSPDeImportacion.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\01_CreacionObjetos.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:01_CreacionObjetos.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\10_CreacionSPReportes.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:10_CreacionSPReportes.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\09_CreacionIDX.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:09_CreacionIDX.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\08_CreacionSPGenerarLote.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:08_CreacionSPGenerarLote.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\07_CreacionSPImportarServiciosServicios.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:07_CreacionSPImportarServiciosServicios.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\06_CreacionSPImportarPagosConsorcios.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:06_CreacionSPImportarPagosConsorcios.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\05_CreacionSPImportarInquilinoPropietariosUF.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:05_CreacionSPImportarInquilinoPropietariosUF.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\04_CreacionSPImportarUFPorConsorcio.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:04_CreacionSPImportarUFPorConsorcio.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\03_CreacionSPImportarInquilinoPropietariosDatos.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:03_CreacionSPImportarInquilinoPropietariosDatos.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\02_CreacionSPImportarDatosVarios.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:02_CreacionSPImportarDatosVarios.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\00_CreacionDB.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:00_CreacionDB.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 9,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "10_CreacionSPReportes.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (64))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\10_CreacionSPReportes.sql",
+              "RelativeDocumentMoniker": "10_CreacionSPReportes.sql",
+              "ToolTip": "10_CreacionSPReportes.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (64))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:53.006Z",
+              "EditorCaption": " - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (64))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "09_CreacionIDX.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (63))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\09_CreacionIDX.sql",
+              "RelativeDocumentMoniker": "09_CreacionIDX.sql",
+              "ToolTip": "09_CreacionIDX.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (63))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:47.537Z",
+              "EditorCaption": " - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (63))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "08_CreacionSPGenerarLote.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (62))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\08_CreacionSPGenerarLote.sql",
+              "RelativeDocumentMoniker": "08_CreacionSPGenerarLote.sql",
+              "ToolTip": "08_CreacionSPGenerarLote.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (62))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:44.876Z",
+              "EditorCaption": " - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (62))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "07_CreacionSPImportarServiciosServicios.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (60))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\07_CreacionSPImportarServiciosServicios.sql",
+              "RelativeDocumentMoniker": "07_CreacionSPImportarServiciosServicios.sql",
+              "ToolTip": "07_CreacionSPImportarServiciosServicios.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (60))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:35.736Z",
+              "EditorCaption": " - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (60))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "06_CreacionSPImportarPagosConsorcios.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (61))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\06_CreacionSPImportarPagosConsorcios.sql",
+              "RelativeDocumentMoniker": "06_CreacionSPImportarPagosConsorcios.sql",
+              "ToolTip": "06_CreacionSPImportarPagosConsorcios.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (61))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:38.359Z",
+              "EditorCaption": " - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (61))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "05_CreacionSPImportarInquilinoPropietariosUF.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (59))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\05_CreacionSPImportarInquilinoPropietariosUF.sql",
+              "RelativeDocumentMoniker": "05_CreacionSPImportarInquilinoPropietariosUF.sql",
+              "ToolTip": "05_CreacionSPImportarInquilinoPropietariosUF.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (59))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:31.852Z",
+              "EditorCaption": " - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (59))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "04_CreacionSPImportarUFPorConsorcio.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (57))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\04_CreacionSPImportarUFPorConsorcio.sql",
+              "RelativeDocumentMoniker": "04_CreacionSPImportarUFPorConsorcio.sql",
+              "ToolTip": "04_CreacionSPImportarUFPorConsorcio.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (57))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:27.39Z",
+              "EditorCaption": " - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (57))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "03_CreacionSPImportarInquilinoPropietariosDatos.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (56))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\03_CreacionSPImportarInquilinoPropietariosDatos.sql",
+              "RelativeDocumentMoniker": "03_CreacionSPImportarInquilinoPropietariosDatos.sql",
+              "ToolTip": "03_CreacionSPImportarInquilinoPropietariosDatos.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (56))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:21.466Z",
+              "EditorCaption": " - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (56))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "02_CreacionSPImportarDatosVarios.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (55))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\02_CreacionSPImportarDatosVarios.sql",
+              "RelativeDocumentMoniker": "02_CreacionSPImportarDatosVarios.sql",
+              "ToolTip": "02_CreacionSPImportarDatosVarios.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (55))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:07:15.956Z",
+              "EditorCaption": " - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (55))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Pruebas_EjecutarSPDeImportacion.sql - WINDOWS10TOPICO\\GRUPO09 (WINDOWS10TOPICO\\Rodrigo (85)) - no conectado",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\Pruebas_EjecutarSPDeImportacion.sql",
+              "RelativeDocumentMoniker": "Pruebas_EjecutarSPDeImportacion.sql",
+              "ToolTip": "Pruebas_EjecutarSPDeImportacion.sql - WINDOWS10TOPICO\\GRUPO09 (WINDOWS10TOPICO\\Rodrigo (85)) - no conectado",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:06:21.709Z",
+              "EditorCaption": " - WINDOWS10TOPICO\\GRUPO09 (WINDOWS10TOPICO\\Rodrigo (85)) - no conectado"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "01_CreacionObjetos.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (54))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\01_CreacionObjetos.sql",
+              "RelativeDocumentMoniker": "01_CreacionObjetos.sql",
+              "ToolTip": "01_CreacionObjetos.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (54))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:05:38.23Z",
+              "EditorCaption": " - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (WINDOWS10TOPICO\\Rodrigo (54))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "00_CreacionDB.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (73))",
+              "DocumentMoniker": "C:\\Users\\Rodrigo\\Documents\\Git\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\00_CreacionDB.sql",
+              "RelativeDocumentMoniker": "00_CreacionDB.sql",
+              "ToolTip": "00_CreacionDB.sql - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (73))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2025-11-07T22:05:33.443Z",
+              "EditorCaption": " - Com5600G09 (WINDOWS10TOPICO\\Rodrigo (73))"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

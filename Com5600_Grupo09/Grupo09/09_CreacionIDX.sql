@@ -2,11 +2,11 @@
  * Bases de Datos Aplicada - Comisi�n 5600
  * GRUPO 09
  *
- * Archivo: 08_EjecutarSPDeImportacion.sql
- * Enunciado cumplimentado: Creaci�n de script para la importaci�n de maestros
+ * Archivo: 09_CreacionIDX.sql
+ * Enunciado cumplimentado: Crecion de indices para los reportes
  *
  * Integrantes:
- * - Ludmila Daiana Ibarra S�nchez DNI 42537300
+ * - Ludmila Daiana Ibarra Sanchez DNI 42537300
  * - Gianluca Ferreyra DNI 46026937
  * - Rodrigo Ezequiel Maranzana DNI 41853030
  *********************************************************/
