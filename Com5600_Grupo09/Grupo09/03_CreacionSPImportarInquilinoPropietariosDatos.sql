@@ -163,8 +163,6 @@ BEGIN
         SET @Insertados = @@ROWCOUNT;
         SET @DuplicadosEnTabla = @LeidosDeArchivo - @Insertados - @Corruptos;
 
-        SELECT * FROM #PersonaYCuentaLimpio;
-
         ----------------------------------------------------------------------------------------------------------------------------------
         /* REPORTE Y LOG persona.Persona */
         ----------------------------------------------------------------------------------------------------------------------------------

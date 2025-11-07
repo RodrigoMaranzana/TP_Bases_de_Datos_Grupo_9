@@ -117,31 +117,24 @@ BEGIN
                     WHEN ValoresDespivotados.Categoria = 'ADMINISTRACION' THEN 'GASTOS DE ADMINISTRACION'
                     WHEN ValoresDespivotados.Categoria = 'GASTOS GENERALES' THEN 'GASTOS GENERALES'
                     WHEN ValoresDespivotados.Categoria = 'SEGUROS' THEN 'SEGUROS'
-                    WHEN ValoresDespivotados.Categoria IN ('SERVICIOS_PUBLICOS_Agua', 'SERVICIOS_PUBLICOS_Luz') THEN 'SERVICIOS PUBLICOS'
+                    WHEN ValoresDespivotados.Categoria IN ('SERVICIOS PUBLICOS-Agua', 'SERVICIOS PUBLICOS-Luz') THEN 'SERVICIOS PUBLICOS'
                 END AS Categoria,
-                TRY_CAST(
+				    TRY_CAST( 
                     CASE -- segun la posicion de la ',' y '.' realizamos los reemplazos correctos
-                        WHEN
-                            CHARINDEX(',', ValoresDespivotados.ImporteTexto) > 0 AND
-                            CHARINDEX('.', ValoresDespivotados.ImporteTexto) > CHARINDEX(',', ValoresDespivotados.ImporteTexto)
-                        THEN
-                            REPLACE(ValoresDespivotados.ImporteTexto, ',', '') -- 22,648.59
-
-                        WHEN
-                            CHARINDEX('.', ValoresDespivotados.ImporteTexto) > 0 AND
-                            CHARINDEX(',', ValoresDespivotados.ImporteTexto) > CHARINDEX('.', ValoresDespivotados.ImporteTexto)
-                        THEN
-                            REPLACE(REPLACE(ValoresDespivotados.ImporteTexto, '.', ''), ',', '.') -- 37.730,00
-
-                        WHEN 
-                            ValoresDespivotados.ImporteTexto LIKE '%,%' AND
-                            ValoresDespivotados.ImporteTexto NOT LIKE '%.%' 
+                    WHEN CHARINDEX(',', ValoresDespivotados.ImporteTexto) > 0 AND
+                    CHARINDEX('.', ValoresDespivotados.ImporteTexto) > CHARINDEX(',', ValoresDespivotados.ImporteTexto)
+                        THEN REPLACE(ValoresDespivotados.ImporteTexto, ',', '') -- 22,648.59
+                    WHEN CHARINDEX('.', ValoresDespivotados.ImporteTexto) > 0 AND
+                    CHARINDEX(',', ValoresDespivotados.ImporteTexto) > CHARINDEX('.', ValoresDespivotados.ImporteTexto)
+                        THEN REPLACE(REPLACE(ValoresDespivotados.ImporteTexto, '.', ''), ',', '.') -- 37.730,00
+                    WHEN ValoresDespivotados.ImporteTexto LIKE '%,%' AND
+                    ValoresDespivotados.ImporteTexto NOT LIKE '%.%'
+                        THEN REPLACE(ValoresDespivotados.ImporteTexto, ',', '') -- 200,000,00
+                    WHEN ValoresDespivotados.ImporteTexto LIKE '%,%' AND
+                    ValoresDespivotados.ImporteTexto NOT LIKE '%.%'
                         THEN REPLACE(ValoresDespivotados.ImporteTexto, ',', '.') -- 127,00
-
-                        ELSE ValoresDespivotados.ImporteTexto -- 127.00
-                    END 
-                AS DECIMAL(12,2)) AS Importe
-
+                    ELSE ValoresDespivotados.ImporteTexto -- 127.00
+                END AS DECIMAL(12,2)) AS Importe
             FROM #JsonTemp AS Temp 
             CROSS APPLY ( -- despivoteamos
                 VALUES
@@ -149,9 +142,9 @@ BEGIN
                     ('LIMPIEZA', Temp.LIMPIEZA),
                     ('ADMINISTRACION', Temp.ADMINISTRACION),
                     ('SEGUROS', Temp.SEGUROS),
-                    ('GASTOS_GENERALES', Temp.GASTOS_GENERALES),
-                    ('SERVICIOS_PUBLICOS_Agua', Temp.SERVICIOS_PUBLICOS_Agua),
-                    ('SERVICIOS_PUBLICOS_Luz', Temp.SERVICIOS_PUBLICOS_Luz)
+                    ('GASTOS GENERALES', Temp.GASTOS_GENERALES),
+                    ('SERVICIOS PUBLICOS-Agua', Temp.SERVICIOS_PUBLICOS_Agua),
+                    ('SERVICIOS PUBLICOS-Luz', Temp.SERVICIOS_PUBLICOS_Luz)
             ) AS ValoresDespivotados (Categoria, ImporteTexto)
         )
 

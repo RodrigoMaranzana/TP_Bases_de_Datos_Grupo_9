@@ -1,5 +1,5 @@
 
-:setvar RutaProyecto "C:\Users\rodri\Development\Bases_de_Datos_Aplicadas\TP_Bases_de_Datos_Grupo_9\Com5600_Grupo09\Grupo09"
+:setvar RutaProyecto "C:\Users\Rodrigo\Documents\Git\TP_Bases_de_Datos_Grupo_9\Com5600_Grupo09\Grupo09"
 
 USE Com5600G09;
 GO

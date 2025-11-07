@@ -11,7 +11,9 @@
  * - Gianluca Ferreyra DNI 46026937
  * - Rodrigo Ezequiel Maranzana DNI 41853030
  *********************************************************/
-
+ 
+USE Com5600G09;
+GO
 
  CREATE OR ALTER PROCEDURE importar.p_GenerarLotePagos
 (
