@@ -23,6 +23,28 @@ USE Com5600G09;
 GO
 
 ----------------------------------------------------------------------------------------------------------------------------------
+	/* ELIMINACION DE TABLAS */
+----------------------------------------------------------------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS contable.Prorrateo;
+GO
+DROP TABLE IF EXISTS contable.EstadoFinanciero;
+DROP TABLE IF EXISTS contable.Pago;
+DROP TABLE IF EXISTS contable.Comprobante;
+DROP TABLE IF EXISTS infraestructura.UnidadFuncional;
+DROP TABLE IF EXISTS general.LogRegistroRechazado;
+GO
+DROP TABLE IF EXISTS contable.GastoOrdinario;
+DROP TABLE IF EXISTS contable.GastoExtraordinario;
+DROP TABLE IF EXISTS persona.Servicio;
+DROP TABLE IF EXISTS persona.CuentaBancaria;
+GO
+DROP TABLE IF EXISTS persona.Persona;
+DROP TABLE IF EXISTS infraestructura.Consorcio;
+DROP TABLE IF EXISTS general.Log;
+GO
+
+----------------------------------------------------------------------------------------------------------------------------------
 	/* TABLES */
 ----------------------------------------------------------------------------------------------------------------------------------
 
@@ -263,8 +285,6 @@ CREATE TABLE contable.Prorrateo(
 
 	PorcentajePorM2 DECIMAL(3,1) NOT NULL,
 
-	CostoBaulera  DECIMAL(12,2) NOT NULL CHECK (CostoBaulera >= 0),
-	CostoCochera DECIMAL(12,2) NOT NULL CHECK (CostoCochera >= 0),
 	ExpOrd DECIMAL(12,2) NOT NULL CHECK (ExpOrd >= 0),
 	ExpExtraOrd DECIMAL(12,2) NOT NULL CHECK (ExpExtraOrd >= 0),
 	SaldoAnterior DECIMAL(12,2) NOT NULL, --entre saldo y pagos, se obtiene deuda, consideramos valores negativos
@@ -279,9 +299,7 @@ CREATE TABLE contable.Prorrateo(
 		(SaldoAnterior - PagosRecibidos) + 
 		InteresPorMora + 
 		ExpOrd + 
-		ExpExtraOrd + 
-		CostoCochera + 
-		CostoBaulera
+		ExpExtraOrd
 	),
 
 	CONSTRAINT FK_Prorrateo_UnidadFuncional FOREIGN KEY  (ConsorcioID, NroUnidadFuncionalID) 
@@ -511,6 +529,185 @@ BEGIN
 
 	SET @LogIDOut = SCOPE_IDENTITY();
 END;
+GO
+
+
+CREATE OR ALTER PROCEDURE contable.p_CalcularProrrateoMensual
+    @ConsorcioID INT,
+    @Periodo DATE -- debe ser el primer dia del mes
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_CalcularProrrateoMensual ==============';
+
+    DROP TABLE IF EXISTS #DatosCalculados;
+
+    DECLARE @PeriodoFin DATE = EOMONTH(@Periodo);
+
+    DECLARE @GastoOrdTotal DECIMAL(12, 2);
+    DECLARE @GastoExtraordTotal DECIMAL(12, 2);
+    
+    SELECT @GastoOrdTotal = ISNULL(SUM(GastoOrdinario.Importe), 0)
+    FROM contable.GastoOrdinario GastoOrdinario
+    WHERE GastoOrdinario.ConsorcioID = @ConsorcioID AND GastoOrdinario.Periodo = @Periodo;
+
+    SELECT @GastoExtraordTotal = ISNULL(SUM(GastoExtraordinario.Importe), 0)
+    FROM contable.GastoExtraordinario GastoExtraordinario
+    WHERE GastoExtraordinario.ConsorcioID = @ConsorcioID AND GastoExtraordinario.Periodo = @Periodo;
+
+    DECLARE @SuperficieTotalConsorcio DECIMAL(10, 2);
+
+    SELECT @SuperficieTotalConsorcio = ISNULL(Consorcio.Superficie, 0)
+    FROM infraestructura.Consorcio Consorcio
+    WHERE Consorcio.ConsorcioID = @ConsorcioID;
+
+
+    CREATE TABLE #DatosCalculados (
+        NroUnidadFuncionalID INT PRIMARY KEY,
+        PersonaID INT NOT NULL,
+        NroClaveUniformeID CHAR(22) NOT NULL,
+        SuperficieTotal DECIMAL(10,2) NOT NULL,
+        PorcentajeM2 DECIMAL(3,1) NOT NULL,
+        ExpOrd DECIMAL(12,2) NOT NULL,
+        ExpExtraOrd DECIMAL(12,2) NOT NULL,
+        PagosRecibidos DECIMAL(12,2) NOT NULL,
+        FormaEnvioPropietario VARCHAR(20) NOT NULL,
+        FormaEnvioInquilino VARCHAR(20)
+    );
+
+    DECLARE @PrimerDiaMesSiguiente DATE = DATEADD(month, 1, @Periodo); -- consideramos que se envia la expensa del mes anterior a pagar este mes
+
+    INSERT INTO #DatosCalculados (
+        NroUnidadFuncionalID, PersonaID, NroClaveUniformeID, 
+        SuperficieTotal, PorcentajeM2, 
+        ExpOrd, ExpExtraOrd, 
+        PagosRecibidos, FormaEnvioPropietario, FormaEnvioInquilino
+    )
+    SELECT
+        UnidadFuncional.NroUnidadFuncionalID,
+        UnidadFuncional.PropietarioID,
+        UnidadFuncional.NroClaveUniformeID,
+        (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)),        
+        ((ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) * 100 ) / @SuperficieTotalConsorcio,
+        (@GastoOrdTotal * (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) ) / @SuperficieTotalConsorcio,
+
+        (ISNULL((
+            SELECT SUM(Pago.Importe) -- sumamos todos los pagos recibidos que corresponden a esta UF
+            FROM contable.Pago Pago
+            WHERE Pago.NroClaveUniformeID = UnidadFuncional.NroClaveUniformeID
+            AND Pago.Fecha BETWEEN @Periodo AND @PeriodoFin AND Pago.Concepto = 'EXTRAORDINARIO'
+        ), 0) * (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) ) / @SuperficieTotalConsorcio,
+
+        ISNULL((
+            SELECT SUM(Pago.Importe) -- sumamos todos los pagos recibidos que corresponden a esta UF
+            FROM contable.Pago Pago
+            WHERE Pago.NroClaveUniformeID = UnidadFuncional.NroClaveUniformeID
+            AND Pago.Fecha BETWEEN @Periodo AND @PeriodoFin
+        ), 0),
+
+        CASE -- orden de prioridad
+            WHEN Propietario.Mail IS NOT NULL THEN 'EMAIL'
+            WHEN Propietario.Telefono IS NOT NULL THEN 'WHATSAPP'
+            ELSE 'IMPRESO'
+        END, 
+        CASE -- tambien vemos si existe un inquilino en la UF
+            WHEN UnidadFuncional.InquilinoID IS NULL THEN NULL
+            WHEN Inquilino.Mail IS NOT NULL THEN 'EMAIL'
+            WHEN Inquilino.Telefono IS NOT NULL THEN 'WHATSAPP'
+            ELSE 'IMPRESO'
+        END
+
+    FROM infraestructura.UnidadFuncional UnidadFuncional
+    INNER JOIN persona.Persona Propietario -- hacemos join con las perosnas para obtener su telefono y email
+        ON UnidadFuncional.PropietarioID = Propietario.PersonaID
+    LEFT JOIN persona.Persona Inquilino
+        ON UnidadFuncional.InquilinoID = Inquilino.PersonaID
+    WHERE UnidadFuncional.ConsorcioID = @ConsorcioID;
+
+    BEGIN TRY
+        BEGIN TRANSACTION; -- como vamos a actualizar los prorrateos iniciamos una transaccion
+
+        UPDATE Prorrateo -- actualizamos por si se necesitan regenerar el estado (nuevos pagos, gastos, ect)
+        SET
+            Prorrateo.ExpOrd = #DatosCalculados.ExpOrd,
+            Prorrateo.ExpExtraOrd = #DatosCalculados.ExpExtraOrd,
+            Prorrateo.PagosRecibidos = #DatosCalculados.PagosRecibidos,
+            Prorrateo.PorcentajePorM2 = #DatosCalculados.PorcentajeM2,
+            Prorrateo.FormaEnvioPropietario = #DatosCalculados.FormaEnvioPropietario,
+            Prorrateo.FormaEnvioInquilino = #DatosCalculados.FormaEnvioInquilino
+        FROM contable.Prorrateo Prorrateo
+        INNER JOIN #DatosCalculados
+            ON Prorrateo.NroUnidadFuncionalID = #DatosCalculados.NroUnidadFuncionalID
+        WHERE
+            Prorrateo.ConsorcioID = @ConsorcioID AND
+            Prorrateo.Periodo = @Periodo;
+
+        WITH ProrrateoAnterior AS ( -- buscamos el prorrateo anterior para insertarlo en el nuevo prorrateo
+            SELECT
+                ProrrateoAnterior.Total, 
+                ProrrateoAnterior.FechaVencimiento1, 
+                ProrrateoAnterior.FechaVencimiento2,
+                ProrrateoAnterior.NroUnidadFuncionalID,
+                ROW_NUMBER() OVER(
+                    PARTITION BY ProrrateoAnterior.NroUnidadFuncionalID 
+                    ORDER BY ProrrateoAnterior.Periodo DESC
+                ) AS Numero
+            FROM contable.Prorrateo ProrrateoAnterior
+            WHERE ProrrateoAnterior.ConsorcioID = @ConsorcioID
+                AND ProrrateoAnterior.Periodo < @Periodo
+        )
+
+        INSERT INTO contable.Prorrateo (
+            ConsorcioID, NroUnidadFuncionalID, PersonaID, Periodo, FechaVencimiento1, FechaVencimiento2,
+            PorcentajePorM2, ExpOrd, ExpExtraOrd, 
+            SaldoAnterior, PagosRecibidos, InteresPorMora,
+            FormaEnvioPropietario, FormaEnvioInquilino
+        )
+        SELECT
+            @ConsorcioID,
+            #DatosCalculados.NroUnidadFuncionalID,
+            #DatosCalculados.PersonaID,
+            @Periodo,
+            DATEADD(day, 10, @PeriodoFin), -- calculamos los vencimientos respectos al periodo dado
+            DATEADD(day, 20, @PeriodoFin),
+            #DatosCalculados.PorcentajeM2,
+            #DatosCalculados.ExpOrd,
+            #DatosCalculados.ExpExtraOrd,
+            ISNULL(ProrrateoAnterior.Total, 0.00),
+            #DatosCalculados.PagosRecibidos,
+            CASE -- lo comparamos con el dia de hoy para saber si esta vencida o no
+                WHEN ISNULL(ProrrateoAnterior.Total, 0.00) > 0 THEN
+                    CASE
+                        WHEN GETDATE() > ProrrateoAnterior.FechaVencimiento2 THEN ISNULL(ProrrateoAnterior.Total, 0.00) * 0.05
+                        WHEN GETDATE() > ProrrateoAnterior.FechaVencimiento1 THEN ISNULL(ProrrateoAnterior.Total, 0.00) * 0.02
+                        ELSE 0.00 
+                    END
+                ELSE 0.00
+            END,
+            #DatosCalculados.FormaEnvioPropietario,
+            #DatosCalculados.FormaEnvioInquilino
+        FROM #DatosCalculados
+        LEFT JOIN ProrrateoAnterior
+            ON #DatosCalculados.NroUnidadFuncionalID = ProrrateoAnterior.NroUnidadFuncionalID
+            AND ProrrateoAnterior.Numero = 1
+        LEFT JOIN contable.Prorrateo Prorrateo
+            ON #DatosCalculados.NroUnidadFuncionalID = Prorrateo.NroUnidadFuncionalID
+            AND Prorrateo.ConsorcioID = @ConsorcioID
+            AND Prorrateo.Periodo = @Periodo
+        WHERE Prorrateo.NroUnidadFuncionalID IS NULL;
+
+        COMMIT TRANSACTION;
+        PRINT CHAR(10) + '============== FIN DE p_CalcularProrrateoMensual ==============';
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+
+    DROP TABLE #DatosCalculados;
+END
 GO
 
 

@@ -30,22 +30,6 @@ RECONFIGURE;
 GO
 
 ----------------------------------------------------------------------------------------------------------------------------------
-	/* ELIMINACION DE TODA LA BASE DE DATOS */
-----------------------------------------------------------------------------------------------------------------------------------
-
-/**
-USE master;
-GO
-
-IF DB_ID('Com5600G09') IS NOT NULL
-BEGIN
-    ALTER DATABASE Com5600G09 SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE Com5600G09;
-END
-GO
-**/
-
-----------------------------------------------------------------------------------------------------------------------------------
 	/* ELIMINACION DE TABLAS */
 ----------------------------------------------------------------------------------------------------------------------------------
 
@@ -72,7 +56,7 @@ GO
 ----------------------------------------------------------------------------------------------------------------------------------
 
 DROP PROCEDURE IF EXISTS general.p_RegistrarLog;
-DROP FUNCTION IF EXISTS contable.p_CalcularProrrateoMensual; -- si lo llegaste a crear
+DROP PROCEDURE IF EXISTS contable.p_CalcularProrrateoMensual;
 GO
 DROP FUNCTION IF EXISTS general.f_RemoverBlancos;
 DROP FUNCTION IF EXISTS general.f_NormalizarTelefono;
@@ -91,6 +75,20 @@ DROP SCHEMA IF EXISTS infraestructura;
 DROP SCHEMA IF EXISTS persona;
 DROP SCHEMA IF EXISTS contable;
 DROP SCHEMA IF EXISTS general;
+GO
+
+----------------------------------------------------------------------------------------------------------------------------------
+	/* ELIMINACION DE TODA LA BASE DE DATOS */
+----------------------------------------------------------------------------------------------------------------------------------
+
+USE master;
+GO
+
+IF DB_ID('Com5600G09') IS NOT NULL
+BEGIN
+    ALTER DATABASE Com5600G09 SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE Com5600G09;
+END
 GO
 
 ----------------------------------------------------------------------------------------------------------------------------------
