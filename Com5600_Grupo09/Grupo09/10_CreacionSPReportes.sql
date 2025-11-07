@@ -319,6 +319,57 @@ END
 GO
 
 
+-- REPORTE 5
+
+CREATE OR ALTER PROCEDURE general.p_ReportePropietariosMorosos
+(
+    @ConsorcioID INT,    -- parametro 1 el consorcio analizar a seleccionar
+    @FechaInicio DATE,   -- parametro 2 desde que fecha
+    @FechaFin DATE,      -- parametro 3 hasta que fecha
+    @MontoMinimoDeuda DECIMAL (10,2) = NULL  -- parametro opcional, si se quisiera filtrar a partir de un minimo de deuda
+)
+   AS
+   BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_ReportePropietariosMorosos ==============';
+
+    DROP TABLE IF EXISTS #DeudaPorPropietario;
+    
+    -- calculo la deuda total acumlada para cada propietario en un consorcio en un rango de fechas
+    SELECT
+        Persona.PersonaID,
+        SUM(Prorrateo.Total) AS DeudaTotalAcumulada
+    INTO #DeudaPorPropietario 
+    FROM contable.Prorrateo AS Prorrateo
+    INNER JOIN persona.Persona AS Persona 
+        ON Prorrateo.PersonaID = Persona.PersonaID
+    WHERE 
+        Prorrateo.ConsorcioID = @ConsorcioID AND
+        (Prorrateo.Periodo >= @FechaInicio AND Prorrateo.Periodo <= @FechaFin) AND
+        Persona.EsPropietario = 1 -- para asegurarse de que se este filtrando por propietario
+    GROUP BY 
+        Persona.PersonaID
+    HAVING -- si se ingresa el parametro de monto minimo se filtra tambien por ese valor
+        (@MontoMinimoDeuda IS NULL OR SUM(Prorrateo.Total) >= @MontoMinimoDeuda);
+    
+    SELECT TOP 3 -- busco a los 3 primeros y obtengo su informacion de contacto
+        Persona.DNI,
+        Persona.Nombre,
+        Persona.Apellido,
+        Persona.Mail,
+        Persona.Telefono,
+        DeudaPorPropietario.DeudaTotalAcumulada
+    FROM #DeudaPorPropietario AS DeudaPorPropietario
+    INNER JOIN persona.Persona AS Persona
+        ON DeudaPorPropietario.PersonaID = Persona.PersonaID
+    ORDER BY
+        DeudaPorPropietario.DeudaTotalAcumulada DESC;
+
+    PRINT CHAR(10) + '============== FIN DE p_ReportePropietariosMorosos ==============';
+
+END
+GO
 
 
 -- REPORTE 6
