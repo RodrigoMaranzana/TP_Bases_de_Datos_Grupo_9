@@ -1,12 +1,12 @@
 /**********************************************************
- * Bases de Datos Aplicada - Comisión 5600
+ * Bases de Datos Aplicada - Comisiï¿½n 5600
  * GRUPO 09
  *
  * Archivo: 08_EjecutarSPDeImportacion.sql
- * Enunciado cumplimentado: Creación de script para la importación de maestros
+ * Enunciado cumplimentado: Creaciï¿½n de script para la importaciï¿½n de maestros
  *
  * Integrantes:
- * - Ludmila Daiana Ibarra Sánchez DNI 42537300
+ * - Ludmila Daiana Ibarra Sï¿½nchez DNI 42537300
  * - Gianluca Ferreyra DNI 46026937
  * - Rodrigo Ezequiel Maranzana DNI 41853030
  *********************************************************/
@@ -22,12 +22,14 @@ GO
 select * from persona.Servicio;
 GO
 
+
 EXEC importar.p_ImportarPersonasYCuentasBancarias'C:\Maestros\Inquilino-propietarios-datos.csv';
 GO
 select * from persona.Persona;
 GO
 select * from persona.CuentaBancaria;
 GO
+
 
 EXEC importar.p_ImportarUnidadFuncional'C:\Maestros\UF por consorcio.txt';
 GO
@@ -44,11 +46,26 @@ GO
 select * from contable.Pago;
 GO
 
+EXEC general.p_ReporteMayoresGastosEIngresos 2, '2025-04-01', '2025-06-15';
+GO
+
+
+EXEC general.p_ReporteReacaudacionSemanal 3, '2024-04-01', '2024-06-30';
+GO
+
+EXEC general.p_ReporteRecaudacionTotalSegunProcedencia 5, '2024-04-01', '2024-06-30';
+GO
+
+
+/*
 EXEC importar.p_ImportarGastosOrdinariosJSON'C:\Maestros\Servicios.Servicios.json';
 GO
 select * from contable.GastoOrdinario;
 GO
 
+EXEC importar.p_GenerarLotePagos;
+GO
+*/
 
 select * from general.Log;
 GO

@@ -27,23 +27,71 @@
           <AssociatedConnUserName />
           <FullPath>00_CreacionDB.sql</FullPath>
         </FileNode>
-        <FileNode Name="01_CreacionTablas.sql">
-          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:DESKTOP-3BJEC5M\SQLEXPRESS:True</AssociatedConnectionMoniker>
-          <AssociatedConnSrvName>DESKTOP-3BJEC5M\SQLEXPRESS</AssociatedConnSrvName>
+        <FileNode Name="01_CreacionObjetos.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
           <AssociatedConnUserName />
-          <FullPath>01_CreacionTablas.sql</FullPath>
+          <FullPath>01_CreacionObjetos.sql</FullPath>
         </FileNode>
-        <FileNode Name="02_CreacionSPDatosVarios.sql">
-          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:DESKTOP-3BJEC5M\SQLEXPRESS:True</AssociatedConnectionMoniker>
-          <AssociatedConnSrvName>DESKTOP-3BJEC5M\SQLEXPRESS</AssociatedConnSrvName>
+        <FileNode Name="02_CreacionSPImportarDatosVarios.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
           <AssociatedConnUserName />
-          <FullPath>02_CreacionSPDatosVarios.sql</FullPath>
+          <FullPath>02_CreacionSPImportarDatosVarios.sql</FullPath>
         </FileNode>
-        <FileNode Name="03_CreacionSPImportarInquilinoPropietariosUF.sql">
-          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:DESKTOP-3BJEC5M\SQLEXPRESS:True</AssociatedConnectionMoniker>
-          <AssociatedConnSrvName>DESKTOP-3BJEC5M\SQLEXPRESS</AssociatedConnSrvName>
+        <FileNode Name="03_CreacionSPImportarInquilinoPropietariosDatos.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
           <AssociatedConnUserName />
-          <FullPath>03_CreacionSPImportarInquilinoPropietariosUF.sql</FullPath>
+          <FullPath>03_CreacionSPImportarInquilinoPropietariosDatos.sql</FullPath>
+        </FileNode>
+        <FileNode Name="04_CreacionSPImportarUFPorConsorcio.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>04_CreacionSPImportarUFPorConsorcio.sql</FullPath>
+        </FileNode>
+        <FileNode Name="05_CreacionSPImportarInquilinoPropietariosUF.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>05_CreacionSPImportarInquilinoPropietariosUF.sql</FullPath>
+        </FileNode>
+        <FileNode Name="06_CreacionSPImportarPagosConsorcios.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>06_CreacionSPImportarPagosConsorcios.sql</FullPath>
+        </FileNode>
+        <FileNode Name="08_CreacionSPGenerarLote.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>08_CreacionSPGenerarLote.sql</FullPath>
+        </FileNode>
+        <FileNode Name="09_CreacionIDX.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>09_CreacionIDX.sql</FullPath>
+        </FileNode>
+        <FileNode Name="10_CreacionSPReportes.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>10_CreacionSPReportes.sql</FullPath>
+        </FileNode>
+        <FileNode Name="X0_ReconstruirDB.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>X0_ReconstruirDB.sql</FullPath>
+        </FileNode>
+        <FileNode Name="X1_EjecutarSPDeImportacion.sql">
+          <AssociatedConnectionMoniker />
+          <AssociatedConnSrvName />
+          <AssociatedConnUserName />
+          <FullPath>X1_EjecutarSPDeImportacion.sql</FullPath>
         </FileNode>
       </Items>
     </LogicalFolder>
