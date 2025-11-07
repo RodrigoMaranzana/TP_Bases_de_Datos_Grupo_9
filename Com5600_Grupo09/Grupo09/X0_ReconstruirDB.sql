@@ -1,3 +1,17 @@
+/**********************************************************
+ * Bases de Datos Aplicada - Comisión 5600
+ * GRUPO 09
+ *
+ * Archivo: X0_ReconstruirDB.sql
+ *
+ * Utilizamos este archivo como un acceso directo a la ejecucion
+ * de todos los scripts como una herramienta de testing/desarrollo
+ *
+ * Integrantes:
+ * - Ludmila Daiana Ibarra Sánchez DNI 42537300
+ * - Gianluca Ferreyra DNI 46026937
+ * - Rodrigo Ezequiel Maranzana DNI 41853030
+ *********************************************************/
 
 /* Usar el modo SQLCMD (Ubicada en la lista desplegable "Consulta") */
 

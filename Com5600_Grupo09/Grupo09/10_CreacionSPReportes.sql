@@ -1,9 +1,10 @@
 /**********************************************************
- * Bases de Datos Aplicada - Comisi�n 5600
+ * Bases de Datos Aplicada - Comision 5600
  * GRUPO 09
  *
- * Archivo: 08_EjecutarSPDeImportacion.sql
- * Enunciado cumplimentado: Creaci�n de script para la importación de maestros
+ * Archivo: 10_CreacionSPReportes.sql
+ * Enunciado cumplimentado: Creacion de los SP para la generacion
+ * de los reportes solicitados más uno adicional que utiliza una API
  *
  * Integrantes:
  * - Ludmila Daiana Ibarra Sánchez DNI 42537300

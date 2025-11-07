@@ -55,7 +55,7 @@ GO
 	/* ELIMINACION DE FUNCIONES Y STORED PROCEDURES */
 ----------------------------------------------------------------------------------------------------------------------------------
 
-DROP PROCEDURE IF EXISTS general.p_GenerarLotePagos;
+DROP PROCEDURE IF EXISTS importar.p_GenerarLotePagos;
 DROP PROCEDURE IF EXISTS general.p_RegistrarLog;
 DROP PROCEDURE IF EXISTS contable.p_CalcularProrrateoMensual;
 GO

@@ -3,8 +3,8 @@
   "WorkspaceRootPath": "C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\X0_ReconstruirDB.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
-      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:X0_ReconstruirDB.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\Pruebas_EjecutarSPDeImportacion.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:Pruebas_EjecutarSPDeImportacion.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\10_CreacionSPReportes.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
@@ -43,10 +43,6 @@
       "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:02_CreacionSPImportarDatosVarios.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\Pruebas_EjecutarSPDeImportacion.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
-      "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:Pruebas_EjecutarSPDeImportacion.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\01_CreacionObjetos.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
       "RelativeMoniker": "D:0:0:{534756B1-6E08-959B-8840-803CB58EF234}|Grupo09.ssmssqlproj|solutionrelative:01_CreacionObjetos.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
     },
@@ -62,19 +58,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 9,
           "Children": [
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "X0_ReconstruirDB.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (RODRIGO\\rodri (55))",
-              "DocumentMoniker": "C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\X0_ReconstruirDB.sql",
-              "RelativeDocumentMoniker": "X0_ReconstruirDB.sql",
-              "ToolTip": "X0_ReconstruirDB.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (RODRIGO\\rodri (55))",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
-              "WhenOpened": "2025-11-07T22:26:27.045Z",
-              "EditorCaption": " - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (RODRIGO\\rodri (55))"
-            },
             {
               "$type": "Document",
               "DocumentIndex": 1,
@@ -176,7 +161,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 0,
               "Title": "Pruebas_EjecutarSPDeImportacion.sql - Com5600G09 (RODRIGO\\rodri (73))",
               "DocumentMoniker": "C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\Pruebas_EjecutarSPDeImportacion.sql",
               "RelativeDocumentMoniker": "Pruebas_EjecutarSPDeImportacion.sql",
@@ -187,7 +172,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 10,
               "Title": "01_CreacionObjetos.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (RODRIGO\\rodri (79))",
               "DocumentMoniker": "C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\01_CreacionObjetos.sql",
               "RelativeDocumentMoniker": "01_CreacionObjetos.sql",
@@ -198,7 +183,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 11,
               "Title": "00_CreacionDB.sql - WINDOWS10TOPICO\\GRUPO09.Com5600G09 (RODRIGO\\rodri (72))",
               "DocumentMoniker": "C:\\Users\\rodri\\Development\\Bases_de_Datos_Aplicadas\\TP_Bases_de_Datos_Grupo_9\\Com5600_Grupo09\\Grupo09\\00_CreacionDB.sql",
               "RelativeDocumentMoniker": "00_CreacionDB.sql",

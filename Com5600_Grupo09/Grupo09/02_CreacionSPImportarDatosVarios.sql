@@ -1,8 +1,8 @@
 /**********************************************************
- * Bases de Datos Aplicada - Comisión 5600
+ * Bases de Datos Aplicada - Comision 5600
  * GRUPO 09
  *
- * Archivo: 03_CreacionSPImportarInquilinoPropietariosUF.sql
+ * Archivo: 02_CreacionSPImportarDatosVarios.sql
  * Enunciado cumplimentado: Creación del SP para importar 
  * el maestro Datos Varios.xlsx (Consorcios y proveedores)
  *
