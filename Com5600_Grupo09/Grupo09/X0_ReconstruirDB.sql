@@ -1,5 +1,5 @@
 
-:setvar RutaProyecto "C:BasesDeDatos\TP_Bases_de_Datos_Grupo_9\Com5600_Grupo09\Grupo09"
+:setvar RutaProyecto "C:\Users\rodri\Development\Bases_de_Datos_Aplicadas\TP_Bases_de_Datos_Grupo_9\Com5600_Grupo09\Grupo09"
 
 USE Com5600G09;
 GO
@@ -20,4 +20,19 @@ GO
 GO
 
 :r $(RutaProyecto)\05_CreacionSPImportarInquilinoPropietariosUF.sql
+GO
+
+:r $(RutaProyecto)\06_CreacionSPImportarPagosConsorcios.sql
+GO
+
+:r $(RutaProyecto)\07_CreacionSPImportarServiciosServicios.sql
+GO
+
+:r $(RutaProyecto)\08_CreacionSPGenerarLote.sql
+GO
+
+:r $(RutaProyecto)\09_CreacionIDX.sql
+GO
+
+:r $(RutaProyecto)\10_CreacionSPReportes.sql
 GO
