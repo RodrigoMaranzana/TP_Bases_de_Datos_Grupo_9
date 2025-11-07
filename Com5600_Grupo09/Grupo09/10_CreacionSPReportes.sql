@@ -15,7 +15,7 @@ USE Com5600G09;
 GO
 
 -- REPORTE 1
-CREATE OR ALTER PROCEDURE general.p_ReporteReacaudacionSemanal
+CREATE OR ALTER PROCEDURE general.p_Reporte1ReacaudacionSemanal
 (
     @ConsorcioID INT,    -- parametro 1 el consorcio analizar a seleccionar
     @FechaInicio DATE,   -- parametro 2 desde que fecha
@@ -24,7 +24,7 @@ CREATE OR ALTER PROCEDURE general.p_ReporteReacaudacionSemanal
  AS
  BEGIN
     SET NOCOUNT ON;
-    PRINT CHAR(10) + '============== INICIO DE p_ReporteReacaudacionSemanal ==============';
+    PRINT CHAR(10) + '============== INICIO DE p_Reporte1ReacaudacionSemanal ==============';
 
     DROP TABLE IF EXISTS #PagosSemanales;
 
@@ -65,7 +65,7 @@ CREATE OR ALTER PROCEDURE general.p_ReporteReacaudacionSemanal
     ORDER BY 
         PagosSemanales.Anio, PagosSemanales.NroSemana;
 
-    PRINT CHAR(10) + '============== FIN DE p_ReporteReacaudacionSemanal ==============';
+    PRINT CHAR(10) + '============== FIN DE p_Reporte1ReacaudacionSemanal ==============';
 
 END
 GO
@@ -73,17 +73,17 @@ GO
 
 
 -- REPORTE 2
-CREATE OR ALTER PROCEDURE general.p_ReporteRecaudacionMensualPorDepartamento_XML
+CREATE OR ALTER PROCEDURE general.p_Reporte2RecaudacionMensualPorDepartamento_XML
 (
-    @Anio INT, -- parametro 1
-    @ConsorcioID INT = NULL, -- parametro 2, si es NULL se calcula para todos
+    @ConsorcioID INT = NULL, -- parametro 1, si es NULL se calcula para todos
+    @Anio INT, -- parametro 2
     @Mes INT = NULL -- parametro 3, hasta que mes se calculara
 )
     AS
      BEGIN
      SET NOCOUNT ON;
 
-    PRINT CHAR(10) + '============== INCIO DE p_ReporteRecaudacionMensualPorDepartamento_XML ==============';
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte2RecaudacionMensualPorDepartamento_XML ==============';
 
     DROP TABLE IF EXISTS #DatosFuente;
      ----------------------------------------------------------------------------------------------------------------------------------
@@ -149,7 +149,7 @@ CREATE OR ALTER PROCEDURE general.p_ReporteRecaudacionMensualPorDepartamento_XML
          ORDER BY 
               UnidadFuncionalNombre
         
-        FOR XML PATH('ReporteRecaudacionPorUFPorMes'), ROOT('ReporteRecaudacion');
+        FOR XML PATH('RecaudacionMensualPorUF'), ROOT('Reporte2RecaudacionMensualPorDepartamento');
     END
     ELSE
     BEGIN
@@ -162,7 +162,7 @@ CREATE OR ALTER PROCEDURE general.p_ReporteRecaudacionMensualPorDepartamento_XML
         ORDER BY
             UnidadFuncionalNombre
         
-        FOR XML PATH('ReporteRecaudacionPorUFPorMes'), ROOT('ReporteRecaudacion');
+        FOR XML PATH('RecaudacionMensualPorUF'), ROOT('Reporte2RecaudacionMensualPorDepartamento');
 
     END
 
@@ -173,7 +173,7 @@ GO
 
 
 -- REPORTE 3
-CREATE OR ALTER PROCEDURE general.p_ReporteRecaudacionTotalSegunProcedencia
+CREATE OR ALTER PROCEDURE general.p_Reporte3RecaudacionTotalSegunProcedencia
 (              
     @ConsorcioID INT,       -- parametro 1, para que consorcionse quiere calcular
     @FechaInicio DATE,      -- parametro 2
@@ -183,7 +183,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-PRINT CHAR(10) + '============== INCIO DE p_ReporteRecaudacionTotalSegunProcedencia ==============';
+PRINT CHAR(10) + '============== INCIO DE p_Reporte3RecaudacionTotalSegunProcedencia ==============';
 
     DROP TABLE IF EXISTS #RecaudacionPorConcepto;
 
@@ -217,9 +217,10 @@ PRINT CHAR(10) + '============== INCIO DE p_ReporteRecaudacionTotalSegunProceden
         ISNULL(SUM(TotalRecaudado), 0) AS TotalGeneralMes
     FROM #RecaudacionPorConcepto
     GROUP BY Anio, Mes
-    ORDER BY Anio,Mes;
+    ORDER BY Anio,Mes
+    FOR XML PATH('RecaudacionTotal'), ROOT('Reporte3RecaudacionTotalSegunProcedencia');
 
-    PRINT CHAR(10) + '============== FIN DE p_ReporteRecaudacionTotalSegunProcedencia ==============';
+    PRINT CHAR(10) + '============== FIN DE p_Reporte3RecaudacionTotalSegunProcedencia ==============';
 
 END
 GO
@@ -227,7 +228,7 @@ GO
 
 
 -- REPORTE 4
-CREATE OR ALTER PROCEDURE general.p_ReporteMayoresGastosEIngresos
+CREATE OR ALTER PROCEDURE general.p_Reporte4MayoresGastosEIngresos
 (
     @ConsorcioID INT,    -- parametro 1 el consorcio a analizar 
     @FechaInicio DATE,   -- parametro 2 desde que fecha
@@ -237,7 +238,7 @@ CREATE OR ALTER PROCEDURE general.p_ReporteMayoresGastosEIngresos
    BEGIN
     SET NOCOUNT ON;
 
-    PRINT CHAR(10) + '============== INCIO DE p_ReporteMayoresGastosEIngresos ==============';
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte4MayoresGastosEIngresos ==============';
     DROP TABLE IF EXISTS #IngresosMensuales; 
 
         SELECT 
@@ -313,7 +314,7 @@ CREATE OR ALTER PROCEDURE general.p_ReporteMayoresGastosEIngresos
     FROM  #IngresosMensuales
     ORDER BY TotalIngresos DESC;
 
-    PRINT CHAR(10) + '============== FIN DE p_ReporteMayoresGastosEIngresos ==============';
+    PRINT CHAR(10) + '============== FIN DE p_Reporte4MayoresGastosEIngresos ==============';
 
 END
 GO
@@ -321,7 +322,7 @@ GO
 
 -- REPORTE 5
 
-CREATE OR ALTER PROCEDURE general.p_ReportePropietariosMorosos
+CREATE OR ALTER PROCEDURE general.p_Reporte5PropietariosMorosos
 (
     @ConsorcioID INT,    -- parametro 1 el consorcio analizar a seleccionar
     @FechaInicio DATE,   -- parametro 2 desde que fecha
@@ -332,7 +333,7 @@ CREATE OR ALTER PROCEDURE general.p_ReportePropietariosMorosos
    BEGIN
     SET NOCOUNT ON;
 
-    PRINT CHAR(10) + '============== INCIO DE p_ReportePropietariosMorosos ==============';
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte5PropietariosMorosos ==============';
 
     DROP TABLE IF EXISTS #DeudaPorPropietario;
     
@@ -366,14 +367,14 @@ CREATE OR ALTER PROCEDURE general.p_ReportePropietariosMorosos
     ORDER BY
         DeudaPorPropietario.DeudaTotalAcumulada DESC;
 
-    PRINT CHAR(10) + '============== FIN DE p_ReportePropietariosMorosos ==============';
+    PRINT CHAR(10) + '============== FIN DE p_Reporte5PropietariosMorosos ==============';
 
 END
 GO
 
 
 -- REPORTE 6
-CREATE OR ALTER PROCEDURE general.p_ReportePagosEntreFechas
+CREATE OR ALTER PROCEDURE general.p_Reporte6PagosEntreFechas
 (
     @ConsorcioID INT,    -- parametro 1 el consorcio analizar a seleccionar
     @FechaInicio DATE,   -- parametro 2 desde que fecha
@@ -383,7 +384,7 @@ CREATE OR ALTER PROCEDURE general.p_ReportePagosEntreFechas
    BEGIN
     SET NOCOUNT ON;
 
-    PRINT CHAR(10) + '============== INCIO DE p_ReportePagosEntreFechas ==============';
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte6PagosEntreFechas ==============';
 
     WITH PagosOrdinariosUF AS(
         SELECT 
@@ -429,10 +430,82 @@ CREATE OR ALTER PROCEDURE general.p_ReportePagosEntreFechas
     FROM PagosConSiguiente      
     ORDER BY UnidadFuncionalNombre, FechaDePago; -- ordenado por fecha de pago
        
-    PRINT CHAR(10) + '============== FIN DE p_ReportePagosEntreFechas ==============';
+    PRINT CHAR(10) + '============== FIN DE p_Reporte6PagosEntreFechas ==============';
 END
 GO
 
+-- REPORTE 7 con API quickchart.io para generacion de graficos
+CREATE OR ALTER PROCEDURE general.p_Reporte7GraficoDeGastosOrdinariosPorCategoria
+(
+    @ConsorcioID INT,
+    @PeriodoAnio INT,
+    @PeriodoMes INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
 
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte7GraficoDeGastosOrdinariosPorCategoria ==============';
 
+    DROP TABLE IF EXISTS  #GastoOrdinarioQuickchart;
 
+    DECLARE @FechaInicio DATE = DATEFROMPARTS(@PeriodoAnio, @PeriodoMes, 1); -- calculamos el DATE
+    DECLARE @FechaFin DATE = EOMONTH(@FechaInicio); -- nos da la ultima fecha del mes (end of month)
+    DECLARE @Json VARCHAR(MAX); -- aca pondremos el json a enviar por URL
+    DECLARE @GastoTotal DECIMAL(12, 2);
+    DECLARE @Labels VARCHAR(MAX); -- estos son las etiquetas a colocar por color del grafico
+    DECLARE @Importes VARCHAR(MAX); -- grupo de importes por categoria
+    DECLARE @Url VARCHAR(MAX);
+    DECLARE @NombreConsorcio VARCHAR(255);
+    
+    SELECT @GastoTotal = SUM(Importe) --gasto total para saber nuestro total sobre el cual promediar
+    FROM contable.GastoOrdinario
+    WHERE ConsorcioID = @ConsorcioID
+      AND Periodo BETWEEN @FechaInicio AND @FechaFin;
+
+    SELECT @NombreConsorcio = Consorcio.NombreDelConsorcio
+    FROM infraestructura.Consorcio AS Consorcio
+    WHERE ConsorcioID = @ConsorcioID;
+
+    IF @GastoTotal IS NULL OR @GastoTotal = 0
+    BEGIN
+         RETURN;
+    END
+
+    SELECT --gasto por categoria
+        GastoOrdinario.Categoria,
+        SUM(GastoOrdinario.Importe) AS Importe
+    INTO #GastoOrdinarioQuickchart
+    FROM contable.GastoOrdinario AS GastoOrdinario
+    WHERE
+        GastoOrdinario.ConsorcioID = @ConsorcioID
+        AND GastoOrdinario.Periodo BETWEEN @FechaInicio AND @FechaFin -- entre la fecha dada y la actual
+    GROUP BY
+        GastoOrdinario.Categoria
+
+    SELECT @Labels = (SELECT Categoria FROM #GastoOrdinarioQuickchart FOR JSON PATH); -- seleccionamos las categorias para usarlas como labels en la url
+    -- limpiamos los nombres de las columnas
+    SET @Labels = REPLACE(@Labels, '{"Categoria":"', '"');
+    SET @Labels = REPLACE(@Labels, '"}', '"');
+    
+    -- limpiamos los nombres de las columnas
+    SELECT @Importes = (SELECT Importe FROM #GastoOrdinarioQuickchart FOR JSON PATH);
+    SET @Importes = REPLACE(@Importes, '{"Importe":', '');
+    SET @Importes = REPLACE(@Importes, '}', '');
+
+    -- ejemplo en la documentacion: quickchart.io/sandbox#%7B%0A%20%20type%3A%20%27doughnut%27%2C%0A%20%20data%3A%20%7B%0A%20%20%20%20datasets%3A%20%5B%0A%20%20%20%20%20%20%7B%0A%20%20%20%20%20%20%20%20data%3A%20%5B94%2C%2025%2C%2072%2C%2070%2C%2014%5D%2C%0A%20%20%20%20%20%20%20%20backgroundColor%3A%20%5B%0A%20%20%20%20%20%20%20%20%20%20%27rgb(255%2C%2099%2C%20132)%27%2C%0A%20%20%20%20%20%20%20%20%20%20%27rgb(255%2C%20159%2C%2064)%27%2C%0A%20%20%20%20%20%20%20%20%20%20%27rgb(255%2C%20205%2C%2086)%27%2C%0A%20%20%20%20%20%20%20%20%20%20%27rgb(75%2C%20192%2C%20192)%27%2C%0A%20%20%20%20%20%20%20%20%20%20%27rgb(54%2C%20162%2C%20235)%27%2C%0A%20%20%20%20%20%20%20%20%5D%2C%0A%20%20%20%20%20%20%20%20label%3A%20%27Dataset%201%27%2C%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%5D%2C%0A%20%20%20%20labels%3A%20%5B%27Red%27%2C%20%27Orange%27%2C%20%27Yellow%27%2C%20%27Green%27%2C%20%27Blue%27%5D%2C%0A%20%20%7D%2C%0A%20%20options%3A%20%7B%0A%20%20%20%20title%3A%20%7B%0A%20%20%20%20%20%20display%3A%20true%2C%0A%20%20%20%20%20%20text%3A%20%27Chart.js%20Doughnut%20Chart%27%2C%0A%20%20%20%20%7D%2C%0A%20%20%7D%2C%0A%7D%0A
+    -- creamos el json a enviar por la url
+    SET @Json = 
+        N'{"type":"doughnut","data":{"labels":' + @Labels + ',' +
+        '"datasets":[{"label":"Gastos Ordinarios","data":' + @Importes + ',' +
+        '"backgroundColor":["rgb(54, 162, 235)","rgb(230, 32, 0)","rgb(42, 205, 86)","rgb(255, 159, 64)","rgb(255, 200, 32)"]}]},' +
+        'options:{title:{display:true,text:"Distribucion de Gastos Ordinarios por Categoria - Consorcio: ' + @NombreConsorcio + ' - Mes: ' + TRY_CAST(@PeriodoMes AS VARCHAR(2))  +  ' Año: ' + TRY_CAST(@PeriodoAnio AS VARCHAR(4)) + '"}}}';
+        
+    SET @Url = 'https://quickchart.io/chart?c=' + @Json + N'&width=512&height=512';
+
+    SELECT 
+        @Url AS URLQuickChart; --mostrar el resultado
+
+    PRINT CHAR(10) + '============== FIN DE p_Reporte7GraficoDeGastosOrdinariosPorCategoria ==============';
+END
+GO
