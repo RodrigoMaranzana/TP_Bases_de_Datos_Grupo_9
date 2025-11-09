@@ -25,37 +25,37 @@ BEGIN
 END
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals 
-WHERE name = 'Administrativo General' AND type = 'R')
+WHERE name = 'Administrativo Bancario' AND type = 'R')
 BEGIN
     CREATE ROLE [Administrativo Bancario];
 END
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals 
-WHERE name = 'Administrativo General' AND type = 'R')
+WHERE name = 'Administrativo Operativo' AND type = 'R')
 BEGIN
     CREATE ROLE [Administrativo Operativo];
 END
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals 
-WHERE name = 'Administrativo General' AND type = 'R')
+WHERE name = 'Sistemas' AND type = 'R')
 BEGIN
     CREATE ROLE [Sistemas];
 END
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals 
-WHERE name = 'Administrativo General' AND type = 'R')
+WHERE name = 'Actualizador de Datos UF' AND type = 'R')
 BEGIN
     CREATE ROLE [Actualizador de Datos UF];
 END
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals 
-WHERE name = 'Administrativo General' AND type = 'R')
+WHERE name = 'Importador de Informacion Bancaria' AND type = 'R')
 BEGIN
     CREATE ROLE [Importador de Informacion Bancaria];
 END
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals 
-WHERE name = 'Administrativo General' AND type = 'R')
+WHERE name = 'Generador De Reportes' AND type = 'R')
 BEGIN
     CREATE ROLE [Generador De Reportes];
 END
