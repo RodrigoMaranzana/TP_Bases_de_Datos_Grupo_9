@@ -56,7 +56,20 @@ GO
 ----------------------------------------------------------------------------------------------------------------------------------
 
 DROP PROCEDURE IF EXISTS importar.p_GenerarLotePagos;
+DROP PROCEDURE IF EXISTS importar.p_ImportarGastosOrdinariosJSON;
+DROP PROCEDURE IF EXISTS importar.p_ImportarInquilinoPropietarioPorClaveUniformePorUF;
+DROP PROCEDURE IF EXISTS importar.p_ImportarPagosConsorcios;
+DROP PROCEDURE IF EXISTS importar.p_ImportarDatosVarios;
+DROP PROCEDURE IF EXISTS importar.p_ImportarPersonasYCuentasBancarias;
+DROP PROCEDURE IF EXISTS importar.p_ImportarUnidadFuncional;
 DROP PROCEDURE IF EXISTS general.p_RegistrarLog;
+DROP PROCEDURE IF EXISTS general.p_Reporte1ReacaudacionSemanal;
+DROP PROCEDURE IF EXISTS general.p_Reporte2RecaudacionMensualPorDepartamento_XML;
+DROP PROCEDURE IF EXISTS general.p_Reporte3RecaudacionTotalSegunProcedencia;
+DROP PROCEDURE IF EXISTS general.p_Reporte4MayoresGastosEIngresos;
+DROP PROCEDURE IF EXISTS general.p_Reporte5PropietariosMorosos;
+DROP PROCEDURE IF EXISTS general.p_Reporte6PagosEntreFechas;
+DROP PROCEDURE IF EXISTS general.p_Reporte7GraficoDeGastosOrdinariosPorCategoria;
 DROP PROCEDURE IF EXISTS contable.p_CalcularProrrateoMensual;
 GO
 DROP FUNCTION IF EXISTS general.f_RemoverBlancos;
@@ -139,3 +152,5 @@ GO
 ----------------------------------------------------------------------------------------------------------------------------------
 CREATE SCHEMA general;
 GO
+
+

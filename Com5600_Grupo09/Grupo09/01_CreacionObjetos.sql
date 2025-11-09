@@ -93,14 +93,14 @@ GO
 
 CREATE TABLE persona.Persona(
 	PersonaID INT IDENTITY(1,1) PRIMARY KEY,
-	DNI INT, -- el DNI solo no es confiable, problemas historicos en Argentina
-	Nombre VARCHAR(255),
-	Apellido VARCHAR(255),
-	Mail VARCHAR(255),
-	Telefono VARCHAR(20),
+	DNI INT,                -- se cifrara posteriormenete en el script 12_CifradoDB.sql
+	Nombre VARCHAR(255),    -- se cifrara posteriormenete en el script 12_CifradoDB.sql
+	Apellido VARCHAR(255),  -- se cifrara posteriormenete en el script 12_CifradoDB.sql
+	Mail VARCHAR(255),      -- se cifrara posteriormenete en el script 12_CifradoDB.sql
+	Telefono VARCHAR(20),   -- se cifrara posteriormenete en el script 12_CifradoDB.sql
 	EsPropietario BIT NOT NULL,
 
-	CONSTRAINT UQ_Persona_Unica
+	CONSTRAINT UQ_Persona_Unica -- el DNI solo no es confiable, problemas historicos en Argentina
 		UNIQUE (DNI, Nombre, Apellido), -- no permitimos el ingreso si los 3 son iguales
 
 	CONSTRAINT CK_Persona_MailValido -- normalizado con funcion, CHECK para integridad
@@ -116,8 +116,10 @@ GO
 
 
 CREATE TABLE persona.CuentaBancaria(
-	NroClaveUniformeID CHAR(22) PRIMARY KEY,
+	NroClaveUniformeID CHAR(22), -- se cifrara posteriormenete en el script 12_CifradoDB.sql
 	PersonaID INT NOT NULL,
+
+    CONSTRAINT PK_CuentaBancaria PRIMARY KEY (NroClaveUniformeID),
 
 	CONSTRAINT FK_CuentaBancaria_Persona
 		FOREIGN KEY (PersonaID) REFERENCES persona.Persona(PersonaID),
@@ -131,7 +133,7 @@ GO
 CREATE TABLE infraestructura.UnidadFuncional(
 	NroUnidadFuncionalID INT,
 	ConsorcioID INT  NOT NULL,
-	NroClaveUniformeID CHAR(22),
+	NroClaveUniformeID CHAR(22), -- se cifrara posteriormenete en el script 12_CifradoDB.sql
 	PropietarioID INT NOT NULL,
 	InquilinoID INT,
 	Piso CHAR(2) NOT NULL,
@@ -263,7 +265,7 @@ GO
 CREATE TABLE contable.Pago(
 	PagoID INT IDENTITY(10000,1) PRIMARY KEY,
 	Fecha DATE NOT NULL,
-	NroClaveUniformeID CHAR(22) NOT NULL,
+	NroClaveUniformeID CHAR(22) NOT NULL, -- se cifrara posteriormenete en el script 12_CifradoDB.sql
 	Concepto CHAR(20) NOT NULL CHECK (Concepto IN ('ORDINARIO','EXTRAORDINARIO')),
 	Importe DECIMAL(12,2) NOT NULL CHECK (Importe > 0),
 
