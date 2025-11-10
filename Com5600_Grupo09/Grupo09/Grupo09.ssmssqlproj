@@ -87,6 +87,24 @@
           <AssociatedConnUserName />
           <FullPath>10_CreacionSPReportes.sql</FullPath>
         </FileNode>
+        <FileNode Name="11_CreacionRoles.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:RODRIGO\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>RODRIGO\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>11_CreacionRoles.sql</FullPath>
+        </FileNode>
+        <FileNode Name="12_CifradoDB.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:RODRIGO\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>RODRIGO\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>12_CifradoDB.sql</FullPath>
+        </FileNode>
+        <FileNode Name="13_PoliticaDeRespaldo.sql">
+          <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:RODRIGO\SQLEXPRESS:True</AssociatedConnectionMoniker>
+          <AssociatedConnSrvName>RODRIGO\SQLEXPRESS</AssociatedConnSrvName>
+          <AssociatedConnUserName />
+          <FullPath>13_PoliticaDeRespaldo.sql</FullPath>
+        </FileNode>
         <FileNode Name="Pruebas_EjecutarSPDeImportacion.sql">
           <AssociatedConnectionMoniker>8c91a03d-f9b4-46c0-a305-b5dcc79ff907:RODRIGO\SQLEXPRESS:True</AssociatedConnectionMoniker>
           <AssociatedConnSrvName>RODRIGO\SQLEXPRESS</AssociatedConnSrvName>

@@ -50,25 +50,42 @@ GO
 
 EXEC importar.p_ImportarPagosConsorcios'C:\Maestros\pagos_consorcios.csv';
 GO
-EXEC importar.p_GenerarLotePagos @Probabilidad = 1;
-GO
+IF NOT EXISTS (SELECT 1 FROM contable.Pago WHERE contable.Pago.Concepto = 'EXTRAORDINARIO')
+BEGIN -- esto lo realizamos para que los valores de los reportes sean mas variados
+	EXEC importar.p_GenerarLotePagos @Probabilidad = 1, @ImporteMax = 10000, @ImporteMin = 1000;
+	EXEC importar.p_GenerarGastosExtraordinariosDesdePagos;
+END -- solo lo ejecutamos una vez para no incrementar en demasia los pagos
 SELECT * FROM contable.Pago;
+GO
+SELECT * FROM contable.GastoExtraordinario;
 GO
 
 
 EXEC importar.p_ImportarGastosOrdinariosJSON'C:\Maestros\Servicios.Servicios.json';
 GO
+EXEC importar.p_GenerarGastosOrdinariosDesdePagos;
+GO
 SELECT * FROM contable.GastoOrdinario;
 GO
 
 
-EXEC contable.p_CalcularProrrateoMensual 3, '2025-4-1';
+EXEC contable.p_CalcularProrrateoMensual '2025-4-1';
 GO
-EXEC contable.p_CalcularProrrateoMensual 3, '2025-5-1';
+EXEC contable.p_CalcularProrrateoMensual '2025-5-1';
 GO
-EXEC contable.p_CalcularProrrateoMensual 3, '2025-6-1';
+EXEC contable.p_CalcularProrrateoMensual '2025-6-1';
 GO
 SELECT * FROM contable.Prorrateo;
+GO
+
+
+EXEC contable.p_CalcularEstadoFinanciero '2025-4-1';
+GO
+EXEC contable.p_CalcularEstadoFinanciero '2025-5-1';
+GO
+EXEC contable.p_CalcularEstadoFinanciero '2025-6-1';
+GO
+SELECT * FROM contable.EstadoFinanciero
 GO
 
 ----------------------------------------------------------------------------------------------------------------------------------
@@ -96,7 +113,7 @@ GO
 EXEC general.p_Reporte4MayoresGastosEIngresos 1, '2025-04-01', '2025-06-15';
 GO
 
-EXEC  general.p_Reporte5PropietariosMorosos 5, '2025-04-01', '2025-06-15';
+EXEC  general.p_Reporte5PropietariosMorosos 4, '2025-04-01', '2025-06-15';
 GO
 
 EXEC general.p_Reporte6PagosEntreFechas 4, '2025-04-01', '2025-06-30';

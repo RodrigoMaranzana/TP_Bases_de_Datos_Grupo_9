@@ -52,3 +52,8 @@ GO
 
 :r $(RutaProyecto)\10_CreacionSPReportes.sql
 GO
+
+:r $(RutaProyecto)\11_CreacionRoles.sql
+GO
+
+--No coloco el script de cifrado para ejecutarlo manualmente cuando queramos
