@@ -15,16 +15,26 @@
 USE Com5600G09;
 GO
 
+/**
+
+Este script al ser destructivo y alterar permanentemente la base solo puede ejecutarse una vez.
+No se incluye en el script Pruebas_EjecutarSPDeImportacion.sql para que se pueda comparar la
+funcionalidad pre y post cifrado
+
+**/
+
 ----------------------------------------------------------------------------------------------------------------------------------
     /* Certificado para la encriptacion de los datos personales de las Personas */
 ----------------------------------------------------------------------------------------------------------------------------------
 
+-- crea la llave maestra que se usara para el cifrado
 IF NOT EXISTS (SELECT 1 FROM sys.symmetric_keys WHERE name = 'KeyPersonas')
 BEGIN
     CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'Grupo_09_Trabajo#Practico!BDA';
 END
 GO
 
+-- crea el cretificado para protejer la llave simetrica
 IF NOT EXISTS (SELECT 1 FROM sys.certificates WHERE name = 'CertificadoPersonas')
 BEGIN
     CREATE CERTIFICATE CertificadoPersonas
@@ -95,9 +105,9 @@ BEGIN
     DECRYPTION BY CERTIFICATE CertificadoPersonas;
 
     UPDATE persona.CuentaBancaria
-    SET
+    SET -- al crifrar obtendremos dos resultados binarios distintos
         NroClaveUniformeIDCifrado = EncryptByKey(KEY_GUID('KeyPersonas'), NroClaveUniformeID),
-        NroClaveUniformeIDHash = HASHBYTES('SHA2_256', NroClaveUniformeID)
+        NroClaveUniformeIDHash = HASHBYTES('SHA2_256', NroClaveUniformeID) -- por esta razon usamos el hash para buscar/comparar
     WHERE NroClaveUniformeID IS NOT NULL;
 
     CLOSE SYMMETRIC KEY KeyPersonas;
@@ -136,7 +146,7 @@ BEGIN
         Nombre_Hash BINARY(32) NULL,
         Apellido_Cifrado VARBINARY(256) NULL,
         Apellido_Hash BINARY(32) NULL,
-        Mail_Cifrado VARBINARY(256) NULL,
+        Mail_Cifrado VARBINARY(300) NULL, -- aumentamos el limite para que no se trunque y falle
         Telefono_Cifrado VARBINARY(256) NULL;
 END
 GO
@@ -353,8 +363,8 @@ BEGIN
         WITH CTE AS ( -- limpio los registros de la tabla y doy formato
             SELECT
                 RegistroID,
-                CAST(UPPER(LTRIM(RTRIM(Nombre))) AS VARCHAR(255)) AS Nombre,
-                CAST(UPPER(LTRIM(RTRIM(Apellido))) AS VARCHAR(255))  AS Apellido, 
+                CAST(UPPER(LTRIM(RTRIM(Nombre))) AS VARCHAR(128)) AS Nombre,
+                CAST(UPPER(LTRIM(RTRIM(Apellido))) AS VARCHAR(128))  AS Apellido, 
                 TRY_CAST(general.f_NormalizarDNI(DNI) AS INT) AS DNI,
                 general.f_NormalizarMail(EmailPersonal) AS Mail,
                 general.f_NormalizarTelefono(Telefono) AS Telefono,
@@ -654,7 +664,7 @@ BEGIN
             SELECT
                 RegistroID,
                 CASE WHEN general.f_RemoverBlancos(CvuCbu) LIKE '%[^0-9]%' THEN NULL ELSE CAST(general.f_RemoverBlancos(CvuCbu) AS VARCHAR(22)) END AS NroClaveUniforme,
-                CAST(UPPER(LTRIM(RTRIM(NombreDelConsorcio))) AS VARCHAR(255)) AS NombreDelConsorcio,
+                CAST(UPPER(LTRIM(RTRIM(NombreDelConsorcio))) AS VARCHAR(64)) AS NombreDelConsorcio,
                 TRY_CAST(NroUnidadFuncional AS INT) AS NroUnidadFuncional,
                 CAST(LTRIM(RTRIM(Piso)) AS CHAR(2)) AS Piso,
                 CAST(UPPER(LTRIM(RTRIM(Departamento))) AS CHAR(1)) AS Departamento
@@ -784,3 +794,1053 @@ BEGIN
     PRINT CHAR(10) + '============== FIN DE p_ImportarInquilinoPropietarioPorClaveUniformePorUF ==============';
 END
 GO    
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP importar.p_GenerarLotePagos */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+
+ CREATE OR ALTER PROCEDURE importar.p_GenerarLotePagos
+(
+    @Cantidad INT = 5000,
+    @FechaInicio DATE = '2025-04-01',
+    @DiasRango INT = 91,
+    @ImporteMin DECIMAL(12,2) = 500.00,
+    @ImporteMax DECIMAL(12,2) = 5000.00,
+    @Probabilidad FLOAT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    PRINT '============== INICIO DE importar.p_GenerarLotePagos ==============';
+
+    DROP TABLE IF EXISTS #CuentasBancarias;
+    SELECT 
+        CuentaBancariaID -- cambio esto para usar el ID para poder comparara y buscar una cuenta bancaria
+    INTO #CuentasBancarias 
+    FROM 
+        persona.CuentaBancaria;
+
+    IF NOT EXISTS (SELECT 1 FROM #CuentasBancarias)
+    BEGIN
+        PRINT('La tabla persona.CuentaBancaria no tiene registros. No se pueden generar pagos.');
+        RETURN;
+    END
+
+    DECLARE @i INT = 1;
+
+    BEGIN TRANSACTION;
+    WHILE @i <= @Cantidad
+    BEGIN
+        
+        DECLARE @CuentaBancariaID INT = (SELECT TOP 1 CuentaBancariaID FROM #CuentasBancarias ORDER BY NEWID());
+        
+        DECLARE @Importe DECIMAL(12,2) = @ImporteMin + RAND() * (@ImporteMax - @ImporteMin);
+        
+        DECLARE @FechaAleatoria DATE = DATEADD(DAY, (RAND() * @DiasRango), @FechaInicio);
+
+        DECLARE @Concepto CHAR(20);
+
+        IF RAND() < @Probabilidad
+            SET @Concepto = 'EXTRAORDINARIO';
+        ELSE
+            SET @Concepto = 'ORDINARIO';
+
+        INSERT INTO contable.Pago 
+            (Fecha, CuentaBancariaID, Concepto, Importe)
+        VALUES 
+            (@FechaAleatoria, @CuentaBancariaID, @Concepto, @Importe);
+
+        SET @i += 1;
+    END
+    COMMIT TRANSACTION;
+
+    PRINT '============== FIN DE importar.p_GenerarLotePagos ==============';
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP importar.p_ImportarPagosConsorcios */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CREATE OR ALTER PROCEDURE importar.p_ImportarPagosConsorcios
+    @RutaArchivo VARCHAR(260)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_ImportarPagosConsorcios ==============';
+
+    DROP TABLE IF EXISTS #PagosCSVTemp;
+    DROP TABLE IF EXISTS #PagosLimpio;
+
+    CREATE TABLE #PagosCSVTemp ( --columnas del archivo
+        IDDePago VARCHAR(255) COLLATE Latin1_General_CI_AI,
+        Fecha  VARCHAR(255) COLLATE Latin1_General_CI_AI,
+        CvuCbu VARCHAR(255) COLLATE Latin1_General_CI_AI,
+        Valor VARCHAR(255) COLLATE Latin1_General_CI_AI
+    );
+
+    BEGIN TRY
+
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* BLOQUE GENERAL */
+        ----------------------------------------------------------------------------------------------------------------------------------
+
+        DECLARE @Proceso VARCHAR(128) = 'importar.p_ImportarPagosConsorcios';
+
+        DECLARE @BulkInsert NVARCHAR(MAX);
+
+        -- variables para reporte XML
+        DECLARE @LeidosDeArchivo INT;
+        DECLARE @Insertados INT;
+        DECLARE @Actualizados INT;
+        DECLARE @DuplicadosEnArchivo INT;
+        DECLARE @DuplicadosEnTabla INT;
+        DECLARE @Corruptos INT;
+        DECLARE @ReporteXML XML;
+        DECLARE @LogID INT;
+
+        SET @ReporteXML = (
+            SELECT @RutaArchivo AS 'NombreArchivo' 
+            FOR XML PATH('ReporteXMLRegistros')
+        );
+        
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* IMPORTACION ARCHIVO CSV */
+        ----------------------------------------------------------------------------------------------------------------------------------
+
+        PRINT CHAR(10) + '>>> Iniciando el proceso para el archivo';
+
+        SET @BulkInsert = N'
+            BULK INSERT #PagosCSVTemp
+            FROM ''' + @RutaArchivo + '''
+            WITH (
+                FIELDTERMINATOR = '','',
+                ROWTERMINATOR = ''0x0d0a'',     -- según notepad es Windows CR LF, este sería el salto de línea ''\r\n''
+                FIRSTROW = 2,                   -- omitimos el header 
+                CODEPAGE = ''65001''            -- según notepad el encoding es UTF-8 
+            );';
+        
+        EXEC sp_executesql @BulkInsert;
+        SET @LeidosDeArchivo = @@ROWCOUNT;
+
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* NORMALIZACION Y FILTRADO */
+        ----------------------------------------------------------------------------------------------------------------------------------
+
+        WITH CTE AS ( -- limpio los registros de la tabla y doy formato
+            SELECT
+                TRY_CAST(general.f_RemoverBlancos(IDDePago) AS INT) AS PagoID,
+                general.f_NormalizarFecha_DDMMYYYY(Fecha) AS Fecha,
+                CASE WHEN general.f_RemoverBlancos(CvuCbu) LIKE '%[^0-9]%' THEN NULL ELSE CAST(general.f_RemoverBlancos(CvuCbu) AS CHAR(22)) END AS NroClaveUniforme,
+                general.f_NormalizarImporte(Valor) AS Importe
+            FROM #PagosCSVTemp
+        )
+        SELECT
+            CTE.PagoID,
+            CTE.Fecha,
+            CuentaBancaria.CuentaBancariaID,
+            CTE.Importe
+        INTO #PagosLimpio
+        FROM CTE
+        JOIN persona.CuentaBancaria AS Cuenta
+            ON HASHBYTES('SHA2_256', CTE.NroClaveUniforme) = Cuenta.NroClaveUniformeIDHash
+        WHERE
+            NULLIF(CTE.NroClaveUniforme, '') IS NOT NULL AND
+            NULLIF(CTE.Fecha, '') IS NOT NULL AND
+            Importe > 0;
+
+         SET @Corruptos = @LeidosDeArchivo - @@ROWCOUNT;
+
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* UPDATE DE FILAS DE LA TABLA FISICA infraestructura.UnidadFuncional */
+        ----------------------------------------------------------------------------------------------------------------------------------
+        
+        /** No hay nada que actualizar en pagos **/
+
+        ----------------------------------------------------------------------------------------------------------------------------------
+        /* INSERT DE FILAS NUEVAS EN LA TABLA FISICA infraestructura.UnidadFuncional */
+        ----------------------------------------------------------------------------------------------------------------------------------
+  
+        INSERT INTO contable.Pago (
+            Fecha,
+            CuentaBancariaID,
+            Concepto,
+            Importe
+        )
+        SELECT
+            Limpio.Fecha,
+            Limpio.CuentaBancariaID,
+            'ORDINARIO',
+            Limpio.Importe
+        FROM #PagosLimpio AS Limpio
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM contable.Pago AS Pago
+            WHERE Pago.PagoID = Limpio.PagoID -- siemrpe que no se repita el id del pago, lo cargamos (puede haber dos pagos iguales, salvo por ese id)
+        );
+
+        SET @Insertados = @@ROWCOUNT;
+        SET @DuplicadosEnTabla = @LeidosDeArchivo - @Insertados - @Corruptos;
+
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'INFO',
+            @Mensaje = 'Proceso de importacion de pagos completado',
+            @ReporteXML = @ReporteXML;
+
+    END TRY
+    BEGIN CATCH
+      
+        EXEC general.p_RegistrarLog 
+            @Proceso = @Proceso,
+            @Tipo = 'ERROR',
+            @Mensaje = 'Fallo la importacion';
+    
+    END CATCH
+
+    PRINT CHAR(10) + '============== FIN DE p_ImportarPagosConsorcios ==============';
+END
+GO    
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP general.p_Reporte1ReacaudacionSemanal */
+----------------------------------------------------------------------------------------------------------------------------------
+
+-- REPORTE 1
+CREATE OR ALTER PROCEDURE general.p_Reporte1ReacaudacionSemanal
+(
+    @ConsorcioID INT,    -- parametro 1 el consorcio analizar a seleccionar
+    @FechaInicio DATE,   -- parametro 2 desde que fecha
+    @FechaFin DATE       -- parametro 3 hasta que fecha
+)
+ AS
+ BEGIN
+    SET NOCOUNT ON;
+    PRINT CHAR(10) + '============== INICIO DE p_Reporte1ReacaudacionSemanal ==============';
+
+    DROP TABLE IF EXISTS #PagosSemanales;
+
+    SELECT 
+        YEAR(Pago.Fecha) AS Anio,
+        DATEPART(isowk, Pago.Fecha) AS NroSemana,
+       -- sumo los importes de los pagos ordinarios y extraordinarios por separado para esa semana
+       SUM(CASE WHEN Pago.Concepto = 'ORDINARIO' THEN Pago.Importe ELSE 0 END) AS RecaudacionOrdinaria,
+       SUM(CASE WHEN Pago.Concepto = 'EXTRAORDINARIO' THEN Pago.Importe ELSE 0 END) AS RecaudacionExtraordinaria
+    INTO #PagosSemanales
+    FROM contable.Pago AS Pago
+    INNER JOIN
+        persona.CuentaBancaria AS CuentaBancaria 
+        ON Pago.CuentaBancariaID = CuentaBancaria.CuentaBancariaID
+    INNER JOIN 
+        infraestructura.UnidadFuncional AS UnidadFuncional
+        ON CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR
+           CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID
+    WHERE 
+        (Pago.Fecha >= @FechaInicio AND Pago.Fecha <= @FechaFin) AND
+        UnidadFuncional.ConsorcioID = @ConsorcioID
+    GROUP BY
+        YEAR(Pago.Fecha), DATEPART(isowk, Pago.Fecha);
+
+    SELECT 
+        PagosSemanales.Anio,
+        PagosSemanales.NroSemana,
+        PagosSemanales.RecaudacionOrdinaria,
+        PagosSemanales.RecaudacionExtraordinaria,
+        (PagosSemanales.RecaudacionOrdinaria + PagosSemanales.RecaudacionExtraordinaria) AS TotalSemanal,
+        -- calculo el promedio de los pagos semanales
+        AVG(PagosSemanales.RecaudacionOrdinaria + PagosSemanales.RecaudacionExtraordinaria) OVER () AS PromedioSemanal,
+
+        -- calculo el acumlado progresivo
+        SUM(PagosSemanales.RecaudacionOrdinaria + PagosSemanales.RecaudacionExtraordinaria)
+            OVER (ORDER BY PagosSemanales.Anio, PagosSemanales.NroSemana) AS AcumuladoProgresivo
+    FROM #PagosSemanales AS PagosSemanales
+    ORDER BY 
+        PagosSemanales.Anio, PagosSemanales.NroSemana;
+
+    PRINT CHAR(10) + '============== FIN DE p_Reporte1ReacaudacionSemanal ==============';
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP general.p_ReporteRecaudacionMensualPorDepartamento_XML */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+-- REPORTE 2
+CREATE OR ALTER PROCEDURE general.p_Reporte2RecaudacionMensualPorDepartamento_XML
+(
+    @ConsorcioID INT = NULL, -- parametro 1, si es NULL se calcula para todos
+    @Anio INT, -- parametro 2
+    @Mes INT = NULL -- parametro 3, hasta que mes se calculara
+)
+    AS
+     BEGIN
+     SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte2RecaudacionMensualPorDepartamento_XML ==============';
+
+    DROP TABLE IF EXISTS #DatosFuente;
+     ----------------------------------------------------------------------------------------------------------------------------------
+        /* BLOQUE GENERAL */
+     ----------------------------------------------------------------------------------------------------------------------------------
+    DECLARE @FechaInicio DATE; -- desde el 01/01 del anio que se ingreso
+    DECLARE @FechaFin DATE;
+
+    IF @Mes IS NULL
+    BEGIN 
+        SET @FechaInicio = DATEFROMPARTS(@Anio, 1, 1);
+        SET @FechaFin  = DATEADD(month, 1, DATEFROMPARTS(@Anio, 12, 1)); -- hasta el primer dia del mes siguiente a MesFin
+    END
+    ELSE
+    BEGIN
+        SET @FechaInicio = DATEFROMPARTS(@Anio, @Mes, 1);
+        SET @FechaFin  = DATEADD(month, 1, DATEFROMPARTS(@Anio, @Mes, 1)); -- hasta el primer dia del mes siguiente a MesFin
+    END
+   
+     --vincula pagos con consorcios y la unidad funcional
+    SELECT
+        (Consorcio.NombreDelConsorcio + ' - Piso ' + UnidadFuncional.Piso + ' Depto ' + UnidadFuncional.Departamento) AS UnidadFuncionalNombre,
+        MONTH(Pago.Fecha) AS Mes,
+        Pago.Importe
+    INTO #DatosFuente
+    FROM contable.Pago AS Pago
+    INNER JOIN
+    persona.CuentaBancaria AS CuentaBancaria
+        ON Pago.CuentaBancariaID = CuentaBancaria.CuentaBancariaID
+    INNER JOIN
+    infraestructura.UnidadFuncional AS UnidadFuncional
+        ON CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR
+    CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID
+    INNER JOIN
+    infraestructura.Consorcio AS Consorcio
+        ON UnidadFuncional.ConsorcioID = Consorcio.ConsorcioID
+    WHERE
+        (Pago.Fecha >= @FechaInicio AND Pago.Fecha < @FechaFin) AND -- filtro de anio y mes
+        (@ConsorcioID IS NULL OR Consorcio.ConsorcioID = @ConsorcioID) -- filtro de consorcio 
+
+
+    IF @Mes IS NULL
+    BEGIN 
+        SELECT
+            UnidadFuncionalNombre,
+                ISNULL([1], 0.00) AS Enero,
+                ISNULL([2], 0.00) AS Febrero,
+                ISNULL([3], 0.00) AS Marzo,
+                ISNULL([4], 0.00) AS Abril,
+                ISNULL([5], 0.00) AS Mayo,
+                ISNULL([6], 0.00) AS Junio,
+                ISNULL([7], 0.00) AS Julio,
+                ISNULL([8], 0.00) AS Agosto,
+                ISNULL([9], 0.00) AS Septiembre,
+                ISNULL([10], 0.00) AS Octubre,
+                ISNULL([11], 0.00) AS Noviembre,
+                ISNULL([12], 0.00) AS Diciembre
+         FROM #DatosFuente
+         PIVOT (
+             SUM(Importe)
+            FOR Mes IN ([1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12]) -- columnas a crear
+        ) AS PagosUFPorMes
+         ORDER BY 
+              UnidadFuncionalNombre
+        
+        FOR XML PATH('RecaudacionMensualPorUF'), ROOT('Reporte2RecaudacionMensualPorDepartamento');
+    END
+    ELSE
+    BEGIN
+        SELECT 
+            UnidadFuncionalNombre,
+            SUM(ISNULL(Importe, 0.00)) AS MesSolicitado
+        FROM #DatosFuente
+        GROUP BY
+            UnidadFuncionalNombre
+        ORDER BY
+            UnidadFuncionalNombre
+        
+        FOR XML PATH('RecaudacionMensualPorUF'), ROOT('Reporte2RecaudacionMensualPorDepartamento');
+
+    END
+
+    PRINT CHAR(10) + '============== FIN DE p_Reporte2RecaudacionMensualPorDepartamento_XML ==============';
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP general.p_Reporte3RecaudacionTotalSegunProcedencia */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+-- REPORTE 3
+CREATE OR ALTER PROCEDURE general.p_Reporte3RecaudacionTotalSegunProcedencia
+(              
+    @ConsorcioID INT,       -- parametro 1, para que consorcionse quiere calcular
+    @FechaInicio DATE,      -- parametro 2
+    @FechaFin DATE          -- parametro 3
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+PRINT CHAR(10) + '============== INCIO DE p_Reporte3RecaudacionTotalSegunProcedencia ==============';
+
+    DROP TABLE IF EXISTS #RecaudacionPorConcepto;
+
+    SELECT 
+        YEAR(Pago.Fecha) AS Anio,
+        MONTH(Pago.Fecha) AS Mes,
+        Pago.Concepto,
+        SUM(Pago.Importe) AS TotalRecaudado
+    INTO #RecaudacionPorConcepto
+    FROM contable.Pago AS Pago
+    INNER JOIN persona.CuentaBancaria AS CuentaBancaria
+        ON Pago.CuentaBancariaID = CuentaBancaria.CuentaBancariaID
+    INNER JOIN infraestructura.UnidadFuncional AS UnidadFuncional
+        ON CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR
+           CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID
+    WHERE 
+        (Pago.Fecha >= @FechaInicio AND Pago.Fecha <= @FechaFin) AND
+        UnidadFuncional.ConsorcioID = @ConsorcioID
+    GROUP BY 
+        YEAR(Pago.Fecha),
+        MONTH(Pago.Fecha),
+        Pago.Concepto;
+
+    SELECT 
+        Anio, 
+        Mes,
+        -- columnas para cada concepto 
+        SUM(CASE WHEN Concepto = 'ORDINARIO' THEN TotalRecaudado ELSE 0 END) AS TotalOrdinario,
+        SUM(CASE WHEN Concepto = 'EXTRAORDINARIO' THEN TotalRecaudado ELSE 0 END) AS TotalExtraordinario,
+        -- columna de total general por periodo
+        ISNULL(SUM(TotalRecaudado), 0) AS TotalGeneralMes
+    FROM #RecaudacionPorConcepto
+    GROUP BY Anio, Mes
+    ORDER BY Anio,Mes
+    FOR XML PATH('RecaudacionTotal'), ROOT('Reporte3RecaudacionTotalSegunProcedencia');
+
+    PRINT CHAR(10) + '============== FIN DE p_Reporte3RecaudacionTotalSegunProcedencia ==============';
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP general.p_Reporte4MayoresGastosEIngresos */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+-- REPORTE 4
+CREATE OR ALTER PROCEDURE general.p_Reporte4MayoresGastosEIngresos
+(
+    @ConsorcioID INT,    -- parametro 1 el consorcio a analizar 
+    @FechaInicio DATE,   -- parametro 2 desde que fecha
+    @FechaFin DATE      -- parametro 3 hasta que fecha
+)
+ AS
+   BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte4MayoresGastosEIngresos ==============';
+    DROP TABLE IF EXISTS #IngresosMensuales; 
+
+        SELECT 
+            YEAR(Pago.Fecha) AS Anio,
+            MONTH(Pago.Fecha) AS Mes,
+            SUM(Pago.Importe) AS TotalIngresos
+        INTO #IngresosMensuales 
+        FROM
+            contable.Pago AS Pago
+        INNER JOIN
+            persona.CuentaBancaria AS CuentaBancaria
+            ON Pago.CuentaBancariaID = CuentaBancaria.CuentaBancariaID
+        INNER JOIN
+            infraestructura.UnidadFuncional AS UnidadFuncional
+            ON CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR
+                CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID
+        WHERE
+            (Pago.Fecha >= @FechaInicio AND Pago.Fecha <= @FechaFin) AND 
+            (UnidadFuncional.ConsorcioID = @ConsorcioID) 
+        GROUP BY
+            YEAR(Pago.Fecha), MONTH(Pago.Fecha);
+
+
+    WITH GastosMensualesCTE AS (
+        SELECT Anio, MesNro, SUM(TotalGastos) AS TotalGastos
+        FROM (
+           SELECT
+               YEAR(Periodo) AS Anio,
+               MONTH(Periodo) AS MesNro,
+               SUM(Importe) AS TotalGastos
+           FROM contable.GastoOrdinario
+           WHERE
+               (Periodo >= @FechaInicio AND Periodo <= @FechaFin) AND
+               (ConsorcioID = @ConsorcioID)
+           GROUP BY
+                YEAR(Periodo), MONTH(Periodo)
+            
+           UNION ALL   
+           
+           SELECT -- Gastos Extraordinarios
+               YEAR(Periodo) AS Anio,
+               MONTH(Periodo) AS MesNro,
+               SUM(Importe) AS TotalGastos
+           FROM contable.GastoExtraordinario
+           WHERE
+               (Periodo >= @FechaInicio AND Periodo <= @FechaFin) AND
+               (ConsorcioID = @ConsorcioID)
+           GROUP BY
+               YEAR(Periodo), MONTH(Periodo)) AS GastosUnificados
+           GROUP BY
+            Anio, MesNro
+          )
+
+    -- 5 meses de mayores gastos
+    SELECT TOP 5  Anio,
+        CASE MesNro
+            WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
+            WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
+            WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+        END AS Mes, TotalGastos        
+    FROM GastosMensualesCTE                
+    ORDER BY TotalGastos DESC;               
+
+    -- 5 meses de mayores ingresos  
+    SELECT TOP 5 Anio,            
+        CASE Mes
+            WHEN 1 THEN 'Enero' WHEN 2 THEN 'Febrero' WHEN 3 THEN 'Marzo'
+            WHEN 4 THEN 'Abril' WHEN 5 THEN 'Mayo' WHEN 6 THEN 'Junio'
+            WHEN 7 THEN 'Julio' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre' WHEN 11 THEN 'Noviembre' WHEN 12 THEN 'Diciembre'
+         END AS Mes, TotalIngresos
+    FROM  #IngresosMensuales
+    ORDER BY TotalIngresos DESC;
+
+    PRINT CHAR(10) + '============== FIN DE p_Reporte4MayoresGastosEIngresos ==============';
+
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP general.p_Reporte5PropietariosMorosos */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+-- REPORTE 5
+CREATE OR ALTER PROCEDURE general.p_Reporte5PropietariosMorosos
+(
+    @ConsorcioID INT,    -- parametro 1 el consorcio analizar a seleccionar
+    @FechaInicio DATE,   -- parametro 2 desde que fecha
+    @FechaFin DATE,      -- parametro 3 hasta que fecha
+    @MontoMinimoDeuda DECIMAL (10,2) = NULL  -- parametro opcional, si se quisiera filtrar a partir de un minimo de deuda
+)
+   AS
+   BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte5PropietariosMorosos ==============';
+
+    DROP TABLE IF EXISTS #DeudaPorPropietario;
+    
+    -- calculo la deuda total acumlada para cada propietario en un consorcio en un rango de fechas
+    SELECT
+        Persona.PersonaID,
+        SUM(Prorrateo.SaldoActual) AS SaldoNetoAcumulado
+    INTO #DeudaPorPropietario 
+    FROM contable.Prorrateo AS Prorrateo
+    INNER JOIN persona.Persona AS Persona 
+        ON Prorrateo.PersonaID = Persona.PersonaID
+    WHERE 
+        Prorrateo.ConsorcioID = @ConsorcioID AND
+        (Prorrateo.Periodo >= @FechaInicio AND Prorrateo.Periodo <= @FechaFin)
+        AND Persona.EsPropietario = 1 -- para asegurarse de que se este filtrando por propietario
+    GROUP BY 
+        Persona.PersonaID
+    HAVING -- si se ingresa el parametro de monto minimo se filtra tambien por ese valor
+        (@MontoMinimoDeuda IS NULL AND SUM(Prorrateo.SaldoActual) > 0) OR -- SUM(Prorrateo.SaldoActual) > 0 significa que debe dinero
+        (SUM(Prorrateo.SaldoActual) >= @MontoMinimoDeuda); -- si agregamos un monto minimo, necesitamos comparar contra ese valor
+    
+    OPEN SYMMETRIC KEY KeyPersonas
+    DECRYPTION BY CERTIFICATE CertificadoPersonas;
+
+    SELECT TOP 3 -- busco a los 3 primeros y obtengo su informacion de contacto
+        CAST(DECRYPTBYKEY(Persona.DNI) AS VARCHAR(20)) AS DNI,
+        CAST(DECRYPTBYKEY(Persona.Nombre) AS VARCHAR(128)) AS Nombre,
+        CAST(DECRYPTBYKEY(Persona.Apellido) AS VARCHAR(128)) AS Apellido,
+        CAST(DECRYPTBYKEY(Persona.Mail) AS VARCHAR(255)) AS Mail,
+        CAST(DECRYPTBYKEY(Persona.Telefono) AS VARCHAR(20)) AS Telefono,
+        DeudaPorPropietario.SaldoNetoAcumulado
+    FROM #DeudaPorPropietario AS DeudaPorPropietario
+    INNER JOIN persona.Persona AS Persona
+        ON DeudaPorPropietario.PersonaID = Persona.PersonaID
+    ORDER BY
+        DeudaPorPropietario.SaldoNetoAcumulado DESC;
+
+    CLOSE SYMMETRIC KEY KeyPersonas;
+
+    PRINT CHAR(10) + '============== FIN DE p_Reporte5PropietariosMorosos ==============';
+
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP general.p_Reporte6PagosEntreFechas */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+-- REPORTE 6
+CREATE OR ALTER PROCEDURE general.p_Reporte6PagosEntreFechas
+(
+    @ConsorcioID INT,    -- parametro 1 el consorcio analizar a seleccionar
+    @FechaInicio DATE,   -- parametro 2 desde que fecha
+    @FechaFin DATE       -- parametro 3 hasta que fecha
+)
+   AS
+   BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte6PagosEntreFechas ==============';
+
+    WITH PagosOrdinariosUF AS(
+        SELECT 
+            (Consorcio.NombreDelConsorcio + '- Piso' + UnidadFuncional.Piso + ' - Depto' + UnidadFuncional.Departamento) AS UnidadFuncionalNombre,
+            Pago.Fecha AS FechaDePago,
+            Pago.Importe
+        FROM contable.Pago AS Pago           
+        INNER JOIN 
+            persona.CuentaBancaria AS CuentaBancaria
+            ON Pago.CuentaBancariaID = CuentaBancaria.CuentaBancariaID
+        INNER JOIN
+            infraestructura.UnidadFuncional AS UnidadFuncional
+            ON CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR
+                CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID
+        INNER JOIN
+            infraestructura.Consorcio AS Consorcio
+            ON UnidadFuncional.ConsorcioID = Consorcio.ConsorcioID
+
+        WHERE
+            (Pago.Fecha >= @FechaInicio AND Pago.Fecha <= @FechaFin)
+            AND Consorcio.ConsorcioID = @ConsorcioID
+
+        ),
+
+        PagosConSiguiente AS (
+        SELECT
+            UnidadFuncionalNombre,
+            FechaDePago,
+            Importe,
+            LEAD(FechaDePago, 1) OVER (PARTITION BY UnidadFuncionalNombre 
+                                        ORDER BY FechaDePago) AS FechaSiguientePago
+        FROM PagosOrdinariosUF        
+        )
+
+    SELECT 
+        UnidadFuncionalNombre,
+        CONVERT(VARCHAR(10), FechaDePago, 103) AS FechaDePago,
+        Importe,
+        CONVERT(VARCHAR(10), FechaSiguientePago, 103) AS FechaSiguientePago,
+        
+        -- calcula la cantidad de dias entre las fechas de pago
+        DATEDIFF(DAY, FechaDePago, FechaSiguientePago) AS DiasHastaSiguientePago
+    FROM PagosConSiguiente      
+    ORDER BY UnidadFuncionalNombre, FechaDePago; -- ordenado por fecha de pago
+       
+    PRINT CHAR(10) + '============== FIN DE p_Reporte6PagosEntreFechas ==============';
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP importar.p_GenerarGastosExtraordinariosDesdePagos */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CREATE OR ALTER PROCEDURE importar.p_GenerarGastosExtraordinariosDesdePagos
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    PRINT '============== INICIO DE importar.p_GenerarGastosExtraordinariosDesdePagos ==============';
+
+    DROP TABLE IF EXISTS #GastosSumados;
+
+    WITH PagosExtraordinarios AS (
+        SELECT 
+            UnidadFuncional.ConsorcioID,
+            DATEFROMPARTS(YEAR(Pago.Fecha), MONTH(Pago.Fecha), 1) AS Periodo,
+            Pago.Importe
+        FROM contable.Pago AS Pago
+        JOIN persona.CuentaBancaria AS CuentaBancaria 
+            ON Pago.CuentaBancariaID = CuentaBancaria.CuentaBancariaID
+        JOIN infraestructura.UnidadFuncional AS UnidadFuncional
+            ON (CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID)
+        WHERE 
+            Pago.Concepto = 'EXTRAORDINARIO'
+    )
+    SELECT 
+        ConsorcioID,
+        Periodo,
+        SUM(Importe) AS ImporteTotal
+    INTO #GastosSumados
+    FROM PagosExtraordinarios
+    GROUP BY ConsorcioID, Periodo;
+
+
+    UPDATE GastoExtraordinario
+    SET 
+        GastoExtraordinario.Importe = #GastosSumados.ImporteTotal,
+        GastoExtraordinario.CuotasTotales = NULL,
+        GastoExtraordinario.CuotaActual = NULL
+    FROM contable.GastoExtraordinario AS GastoExtraordinario
+    JOIN #GastosSumados
+        ON GastoExtraordinario.ConsorcioID = #GastosSumados.ConsorcioID
+        AND GastoExtraordinario.Periodo = #GastosSumados.Periodo;
+
+    INSERT INTO contable.GastoExtraordinario
+        (ConsorcioID, Periodo, Tipo, ModalidadPago, CuotasTotales, CuotaActual, Importe)
+    SELECT
+        #GastosSumados.ConsorcioID,
+        #GastosSumados.Periodo,
+        'REPARACION',
+        'TOTAL',
+        NULL,
+        NULL,
+        #GastosSumados.ImporteTotal
+    FROM #GastosSumados
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM contable.GastoExtraordinario AS GastoExtraordinario
+        WHERE GastoExtraordinario.ConsorcioID = #GastosSumados.ConsorcioID
+            AND GastoExtraordinario.Periodo = #GastosSumados.Periodo
+            AND GastoExtraordinario.Tipo = 'REPARACION'
+    );
+
+    PRINT '============== FIN DE importar.p_GenerarGastosExtraordinariosDesdePagos ==============';
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Alteracion del SP importar.p_CalcularEstadoFinanciero */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+
+CREATE OR ALTER PROCEDURE contable.p_CalcularEstadoFinanciero
+    @Periodo DATE -- debe ser el primer dia del mes
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_CalcularEstadoFinanciero ==============';
+    SET NOCOUNT ON;
+
+    DECLARE @PeriodoFin DATE = EOMONTH(@Periodo);
+    DROP TABLE IF EXISTS #EstadosFinancieros;
+
+    WITH SaldosAnteriores AS (
+        SELECT -- seleccionamos el saldo de los estados financieros anteriores para todos los consorcios
+            Consorcio.ConsorcioID,
+            ISNULL(EstadoFinanciero.SaldoCierre, 0) AS SaldoAnterior
+        FROM infraestructura.Consorcio AS Consorcio
+        LEFT JOIN contable.EstadoFinanciero AS EstadoFinanciero
+            ON Consorcio.ConsorcioID = EstadoFinanciero.ConsorcioID
+            AND EstadoFinanciero.Periodo = DATEADD(month, -1, @Periodo) -- restamos un mes al periodo
+    ),
+    Egresos AS ( -- sumamos para cada consorcio el total de gastos
+        SELECT ConsorcioID, SUM(Importe) AS TotalEgresos
+        FROM ( -- seleccionamos tanto los gastos ordinarios como los extraordinarios para el mismo periodo
+            SELECT ConsorcioID, Importe FROM contable.GastoOrdinario WHERE Periodo = @Periodo
+            UNION ALL
+            SELECT ConsorcioID, Importe FROM contable.GastoExtraordinario WHERE Periodo = @Periodo
+        )AS GastosOrdYExtraord
+        GROUP BY ConsorcioID -- agrupamos por consorcio
+    ),
+    Pagos AS (
+        SELECT -- para cada consorcio agrupamos los pagos que recibio en este periodo como en termino o adeudados
+            UnidadFuncional.ConsorcioID,
+            ISNULL(SUM(CASE WHEN DAY(Pago.Fecha) <= 10 THEN Pago.Importe ELSE 0 END), 0) AS PagoEnTermino,
+            ISNULL(SUM(CASE WHEN DAY(Pago.Fecha) > 10 THEN Pago.Importe ELSE 0 END), 0) AS PagoAdeudados -- son adeudadosn si son posteriores al primer vencimiento
+        FROM contable.Pago AS Pago
+        JOIN persona.CuentaBancaria AS CuentaBancaria
+            ON Pago.CuentaBancariaID = CuentaBancaria.CuentaBancariaID
+        JOIN infraestructura.UnidadFuncional AS UnidadFuncional
+            ON CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR
+            CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID
+        WHERE
+            Pago.Fecha BETWEEN @Periodo AND @PeriodoFin -- pagos entre el primer dia y el ultimo dia para el periodo dado
+        GROUP BY
+            UnidadFuncional.ConsorcioID
+    )
+    SELECT -- agrupamos para generar el estado financiero en limpio
+        SaldosAnteriores.ConsorcioID,
+        SaldosAnteriores.SaldoAnterior,
+        ISNULL(Egresos.TotalEgresos, 0) AS EgresosPorGastos,
+        ISNULL(Pagos.PagoEnTermino, 0) AS PagoEnTermino,
+        ISNULL(Pagos.PagoAdeudados, 0) AS PagoAdeudado,
+        0.00 AS PagosAdelantados
+    INTO #EstadosFinancieros
+    FROM SaldosAnteriores
+    LEFT JOIN Egresos
+        ON SaldosAnteriores.ConsorcioID = Egresos.ConsorcioID
+    LEFT JOIN Pagos
+        ON SaldosAnteriores.ConsorcioID = Pagos.ConsorcioID;
+
+    UPDATE EstadoFinanciero
+    SET
+        EstadoFinanciero.SaldoAnterior = #EstadosFinancieros.SaldoAnterior,
+        EstadoFinanciero.PagosEnTermino = #EstadosFinancieros.PagoEnTermino,
+        EstadoFinanciero.PagosAdeudados = #EstadosFinancieros.PagoAdeudado,
+        EstadoFinanciero.PagosAdelantados = #EstadosFinancieros.PagosAdelantados,
+        EstadoFinanciero.EgresosPorGastos = #EstadosFinancieros.EgresosPorGastos
+    FROM contable.EstadoFinanciero EstadoFinanciero
+    JOIN #EstadosFinancieros
+        ON EstadoFinanciero.ConsorcioID = #EstadosFinancieros.ConsorcioID
+    WHERE EstadoFinanciero.Periodo = @Periodo; -- actualizamos estados financiers anteriores, ya insertados, por si hubo cambios
+
+    INSERT INTO contable.EstadoFinanciero ( -- insertamos el nuevo estado financiero
+        ConsorcioID, 
+        Periodo, 
+        SaldoAnterior, 
+        PagosEnTermino, 
+        PagosAdeudados, 
+        PagosAdelantados, 
+        EgresosPorGastos
+    )
+    SELECT 
+        #EstadosFinancieros.ConsorcioID,
+        @Periodo,
+        #EstadosFinancieros.SaldoAnterior,
+        #EstadosFinancieros.PagoEnTermino,
+        #EstadosFinancieros.PagoAdeudado,
+        #EstadosFinancieros.PagosAdelantados,
+        #EstadosFinancieros.EgresosPorGastos
+    FROM #EstadosFinancieros
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM contable.EstadoFinanciero EstadoFinanciero
+        WHERE
+            EstadoFinanciero.ConsorcioID = #EstadosFinancieros.ConsorcioID -- siempre que el estado financiero no se repita
+            AND EstadoFinanciero.Periodo = @Periodo -- para el mismo consorcio y periodo
+    );
+
+    PRINT CHAR(10) + '============== FIN DE p_CalcularEstadoFinanciero ==============';
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+	/* Alteracion del SP contable.p_CalcularProrrateoMensual */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CREATE OR ALTER PROCEDURE contable.p_CalcularProrrateoMensual
+    @Periodo DATE -- debe ser el primer dia del mes
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_CalcularProrrateoMensual ==============';
+
+    DROP TABLE IF EXISTS #DatosCalculados;
+
+    DECLARE @PeriodoFin DATE = EOMONTH(@Periodo);
+
+    SELECT
+        Consorcio.ConsorcioID,
+        ISNULL(Consorcio.Superficie, 0) AS SuperficieTotalConsorcio,
+        ISNULL(LeftJoinConsorcio.GastoOrdTotal, 0) AS GastoOrdTotal,
+        ISNULL(LeftJoinGastoExtraord.GastoExtraordTotal, 0) AS GastoExtraordTotal
+    INTO #TotalesConsorcio
+    FROM infraestructura.Consorcio AS Consorcio
+    LEFT JOIN (
+        SELECT ConsorcioID, SUM(Importe) AS GastoOrdTotal
+        FROM contable.GastoOrdinario
+        WHERE Periodo = @Periodo
+        GROUP BY ConsorcioID
+    ) AS LeftJoinConsorcio ON Consorcio.ConsorcioID = LeftJoinConsorcio.ConsorcioID
+    LEFT JOIN (
+        SELECT ConsorcioID, SUM(Importe) AS GastoExtraordTotal
+        FROM contable.GastoExtraordinario
+        WHERE Periodo = @Periodo
+        GROUP BY ConsorcioID
+    ) AS LeftJoinGastoExtraord ON Consorcio.ConsorcioID = LeftJoinGastoExtraord.ConsorcioID;
+
+    CREATE TABLE #DatosCalculados (
+        ConsorcioID INT NOT NULL,
+        NroUnidadFuncionalID INT,
+        PersonaID INT NOT NULL,
+        CuentaBancariaID INT NOT NULL,
+        SuperficieTotal DECIMAL(10,2) NOT NULL,
+        PorcentajeM2 DECIMAL(3,1) NOT NULL,
+        ExpOrd DECIMAL(12,2) NOT NULL,
+        ExpExtraOrd DECIMAL(12,2) NOT NULL,
+        PagosRecibidos DECIMAL(12,2) NOT NULL,
+        FormaEnvioPropietario VARCHAR(20) NOT NULL,
+        FormaEnvioInquilino VARCHAR(20),
+        PRIMARY KEY (ConsorcioID, NroUnidadFuncionalID)
+    );
+
+    DECLARE @PrimerDiaMesSiguiente DATE = DATEADD(month, 1, @Periodo); -- consideramos que se envia la expensa del mes anterior a pagar este mes
+
+    OPEN SYMMETRIC KEY KeyPersonas
+    DECRYPTION BY CERTIFICATE CertificadoPersonas;
+
+    INSERT INTO #DatosCalculados (
+        ConsorcioID,
+        NroUnidadFuncionalID, 
+        PersonaID, 
+        CuentaBancariaID, 
+        SuperficieTotal, 
+        PorcentajeM2, 
+        ExpOrd, 
+        ExpExtraOrd, 
+        PagosRecibidos, 
+        FormaEnvioPropietario, 
+        FormaEnvioInquilino
+    )
+    SELECT
+        UnidadFuncional.ConsorcioID,
+        UnidadFuncional.NroUnidadFuncionalID,
+        UnidadFuncional.PropietarioID,
+        UnidadFuncional.CuentaBancariaID,
+        (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)),        
+        ((ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) * 100 ) / Totales.SuperficieTotalConsorcio,
+        (Totales.GastoOrdTotal * (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) ) / Totales.SuperficieTotalConsorcio,
+        (Totales.GastoExtraordTotal * (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) ) / Totales.SuperficieTotalConsorcio,
+
+        ISNULL((
+            SELECT SUM(Pago.Importe) -- sumamos todos los pagos recibidos que corresponden a esta UnidadFuncional
+            FROM contable.Pago Pago
+            WHERE Pago.CuentaBancariaID = UnidadFuncional.CuentaBancariaID
+            AND Pago.Fecha BETWEEN @Periodo AND @PeriodoFin
+        ), 0),
+
+        CASE -- orden de prioridad
+            WHEN CAST(DECRYPTBYKEY(Propietario.Mail) AS VARCHAR(255)) IS NOT NULL THEN 'EMAIL'
+            WHEN CAST(DECRYPTBYKEY(Propietario.Telefono) AS VARCHAR(20)) IS NOT NULL THEN 'WHATSAPP'
+            ELSE 'IMPRESO'
+        END, 
+        CASE -- tambien vemos si existe un inquilino en la UnidadFuncional
+            WHEN UnidadFuncional.InquilinoID IS NULL THEN NULL
+            WHEN CAST(DECRYPTBYKEY(Propietario.Mail) AS VARCHAR(255)) IS NOT NULL THEN 'EMAIL'
+            WHEN CAST(DECRYPTBYKEY(Propietario.Telefono) AS VARCHAR(20)) IS NOT NULL THEN 'WHATSAPP'
+            ELSE 'IMPRESO'
+        END
+
+    FROM infraestructura.UnidadFuncional UnidadFuncional
+    INNER JOIN #TotalesConsorcio AS Totales
+        ON UnidadFuncional.ConsorcioID = Totales.ConsorcioID
+    INNER JOIN persona.Persona Propietario -- hacemos join con las perosnas para obtener su telefono y email
+        ON UnidadFuncional.PropietarioID = Propietario.PersonaID
+    LEFT JOIN persona.Persona Inquilino
+        ON UnidadFuncional.InquilinoID = Inquilino.PersonaID
+    WHERE Totales.SuperficieTotalConsorcio > 0;
+
+    CLOSE SYMMETRIC KEY KeyPersonas;
+
+    BEGIN TRY
+        BEGIN TRANSACTION; -- como vamos a actualizar los prorrateos iniciamos una transaccion
+
+        UPDATE Prorrateo -- actualizamos por si se necesitan regenerar el estado (nuevos pagos, gastos, ect)
+        SET
+            Prorrateo.ExpOrd = #DatosCalculados.ExpOrd,
+            Prorrateo.ExpExtraOrd = #DatosCalculados.ExpExtraOrd,
+            Prorrateo.PagosRecibidos = #DatosCalculados.PagosRecibidos,
+            Prorrateo.PorcentajePorM2 = #DatosCalculados.PorcentajeM2,
+            Prorrateo.FormaEnvioPropietario = #DatosCalculados.FormaEnvioPropietario,
+            Prorrateo.FormaEnvioInquilino = #DatosCalculados.FormaEnvioInquilino
+        FROM contable.Prorrateo Prorrateo
+        INNER JOIN #DatosCalculados
+            ON Prorrateo.ConsorcioID = #DatosCalculados.ConsorcioID AND
+            Prorrateo.NroUnidadFuncionalID = #DatosCalculados.NroUnidadFuncionalID
+        WHERE
+            Prorrateo.Periodo = @Periodo;
+
+        WITH ProrrateoAnterior AS ( -- buscamos el prorrateo anterior para insertarlo en el nuevo prorrateo
+            SELECT
+                ProrrateoAnterior.SaldoActual, 
+                ProrrateoAnterior.FechaVencimiento1, 
+                ProrrateoAnterior.FechaVencimiento2,
+                ProrrateoAnterior.ConsorcioID,
+                ProrrateoAnterior.NroUnidadFuncionalID,
+                ROW_NUMBER() OVER(
+                    PARTITION BY ProrrateoAnterior.ConsorcioID, ProrrateoAnterior.NroUnidadFuncionalID
+                    ORDER BY ProrrateoAnterior.Periodo DESC
+                ) AS Numero
+            FROM contable.Prorrateo ProrrateoAnterior
+            WHERE ProrrateoAnterior.Periodo < @Periodo
+        )
+
+        INSERT INTO contable.Prorrateo (
+            ConsorcioID,
+            NroUnidadFuncionalID, 
+            PersonaID,
+            Periodo,
+            FechaVencimiento1,
+            FechaVencimiento2,
+            PorcentajePorM2,
+            ExpOrd, 
+            ExpExtraOrd, 
+            SaldoAnterior,
+            PagosRecibidos,
+            InteresPorMora,
+            FormaEnvioPropietario,
+            FormaEnvioInquilino
+        )
+        SELECT
+            #DatosCalculados.ConsorcioID,
+            #DatosCalculados.NroUnidadFuncionalID,
+            #DatosCalculados.PersonaID,
+            @Periodo,
+            DATEADD(day, 10, @PeriodoFin), -- calculamos los vencimientos respectos al periodo dado
+            DATEADD(day, 20, @PeriodoFin),
+            #DatosCalculados.PorcentajeM2,
+            #DatosCalculados.ExpOrd,
+            #DatosCalculados.ExpExtraOrd,
+            ISNULL(ProrrateoAnterior.SaldoActual, 0.00),
+            #DatosCalculados.PagosRecibidos,
+            CASE -- lo comparamos con el dia de hoy para saber si esta vencida o no
+                WHEN ISNULL(ProrrateoAnterior.SaldoActual, 0.00) > 0 THEN
+                    CASE
+                        WHEN GETDATE() > ProrrateoAnterior.FechaVencimiento2 THEN ISNULL(ProrrateoAnterior.SaldoActual, 0.00) * 0.05
+                        WHEN GETDATE() > ProrrateoAnterior.FechaVencimiento1 THEN ISNULL(ProrrateoAnterior.SaldoActual, 0.00) * 0.02
+                        ELSE 0.00 
+                    END
+                ELSE 0.00
+            END,
+            #DatosCalculados.FormaEnvioPropietario,
+            #DatosCalculados.FormaEnvioInquilino
+        FROM #DatosCalculados
+        LEFT JOIN ProrrateoAnterior
+            ON #DatosCalculados.ConsorcioID = ProrrateoAnterior.ConsorcioID
+            AND #DatosCalculados.NroUnidadFuncionalID = ProrrateoAnterior.NroUnidadFuncionalID
+            AND ProrrateoAnterior.Numero = 1
+        LEFT JOIN contable.Prorrateo AS Prorrateo
+            ON #DatosCalculados.NroUnidadFuncionalID = Prorrateo.NroUnidadFuncionalID
+            AND Prorrateo.ConsorcioID = #DatosCalculados.ConsorcioID
+            AND Prorrateo.Periodo = @Periodo
+        WHERE Prorrateo.ProrrateoID IS NULL;
+
+        COMMIT TRANSACTION;
+        PRINT CHAR(10) + '============== FIN DE p_CalcularProrrateoMensual ==============';
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+
+    DROP TABLE #DatosCalculados;
+END
+GO
