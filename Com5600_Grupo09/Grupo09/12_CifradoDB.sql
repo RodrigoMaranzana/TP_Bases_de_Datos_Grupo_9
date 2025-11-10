@@ -687,7 +687,7 @@ BEGIN
                 PARTITION BY
                     UnidadFuncional.ConsorcioID,
                     UnidadFuncional.NroUnidadFuncionalID
-                ORDER BY H.RegistroID
+                ORDER BY LimpioHash.RegistroID
             ) AS CantApariciones
         INTO #ClaveUniformePorUFLimpio
         FROM #ClaveUniformePorUFLimpioHash AS LimpioHash
@@ -949,8 +949,8 @@ BEGIN
             CTE.Importe
         INTO #PagosLimpio
         FROM CTE
-        JOIN persona.CuentaBancaria AS Cuenta
-            ON HASHBYTES('SHA2_256', CTE.NroClaveUniforme) = Cuenta.NroClaveUniformeIDHash
+        JOIN persona.CuentaBancaria AS CuentaBancaria
+            ON HASHBYTES('SHA2_256', CTE.NroClaveUniforme) = CuentaBancaria.NroClaveUniformeIDHash
         WHERE
             NULLIF(CTE.NroClaveUniforme, '') IS NOT NULL AND
             NULLIF(CTE.Fecha, '') IS NOT NULL AND
@@ -1842,5 +1842,103 @@ BEGIN
     END CATCH
 
     DROP TABLE #DatosCalculados;
+END
+GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+	/* Alteracion del SP importar.p_GenerarGastosOrdinariosDesdePagos */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+CREATE OR ALTER PROCEDURE importar.p_GenerarGastosOrdinariosDesdePagos
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    PRINT '============== INICIO DE importar.p_GenerarGastosOrdinariosDesdePagos ==============';
+
+    DECLARE @FactorMinimo DECIMAL(5,2) = 0.98; -- 98%
+    DECLARE @FactorMaximo DECIMAL(5,2) = 1.02; -- 102%
+
+    DROP TABLE IF EXISTS #Totales;
+    DROP TABLE IF EXISTS #Ajustes;
+
+    WITH PagosSumados AS (
+        SELECT 
+            UnidadFuncional.ConsorcioID,
+            DATEFROMPARTS(YEAR(Pago.Fecha), MONTH(Pago.Fecha), 1) AS Periodo,
+            SUM(Pago.Importe) AS TotalPagado
+        FROM contable.Pago AS Pago
+        JOIN persona.CuentaBancaria AS CuentaBancaria 
+            ON Pago.CuentaBancariaID = CuentaBancaria.CuentaBancariaID
+        JOIN infraestructura.UnidadFuncional AS UnidadFuncional
+            ON (CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID)
+        GROUP BY 
+            UnidadFuncional.ConsorcioID, DATEFROMPARTS(YEAR(Pago.Fecha), MONTH(Pago.Fecha), 1)
+    ),
+    GastosActualesCTE AS (
+        SELECT ConsorcioID, Periodo, SUM(Importe) AS TotalGastadoActual
+        FROM (
+            SELECT ConsorcioID, Periodo, Importe FROM contable.GastoOrdinario
+            UNION ALL
+            SELECT ConsorcioID, Periodo, Importe FROM contable.GastoExtraordinario
+        ) AS GastosTotales
+        GROUP BY ConsorcioID, Periodo
+    )
+
+    SELECT
+        PagosSumados.ConsorcioID,
+        PagosSumados.Periodo,
+        PagosSumados.TotalPagado,
+        ISNULL(GastosActualesCTE.TotalGastadoActual, 0) AS TotalGastadoActual
+    INTO #Totales
+    FROM PagosSumados AS PagosSumados
+    LEFT JOIN GastosActualesCTE
+        ON PagosSumados.ConsorcioID = GastosActualesCTE.ConsorcioID AND PagosSumados.Periodo = GastosActualesCTE.Periodo;
+
+    SELECT
+        ConsorcioID,
+        Periodo,
+        TotalPagado,
+        TotalGastadoActual,
+    CASE 
+        WHEN TotalGastadoActual < (TotalPagado * @FactorMinimo) -- cuando haya menos gasto que pagos (considerando un factor minimo para variabilidad)
+        THEN (TotalPagado * (@FactorMinimo + (RAND(CHECKSUM(NEWID())) * (@FactorMaximo - @FactorMinimo)))) - TotalGastadoActual
+        ELSE 0  -- compensamos los pagos de forma aleatoria elevando el gasto entre un 90% y un 102% (para generar unidades con deuda y sin ella)
+    END AS ImporteAjuste
+    INTO #Ajustes
+    FROM #Totales;
+
+    UPDATE GastoOrdinario
+    SET 
+        GastoOrdinario.Importe = GastoOrdinario.Importe + #Ajustes.ImporteAjuste
+    FROM contable.GastoOrdinario AS GastoOrdinario
+    JOIN #Ajustes
+        ON GastoOrdinario.ConsorcioID = #Ajustes.ConsorcioID
+        AND GastoOrdinario.Periodo = #Ajustes.Periodo
+    WHERE 
+        GastoOrdinario.Categoria = 'GASTOS GENERALES'
+        AND #Ajustes.ImporteAjuste > 0;
+        
+
+    INSERT INTO contable.GastoOrdinario (ConsorcioID, Periodo, Categoria, Importe)
+    SELECT
+        #Ajustes.ConsorcioID,
+        #Ajustes.Periodo,
+        'GASTOS GENERALES', -- Utilizamos la categoria generica
+        #Ajustes.ImporteAjuste
+    FROM #Ajustes
+    WHERE
+        #Ajustes.ImporteAjuste > 0
+        AND NOT EXISTS (
+            SELECT 1
+            FROM contable.GastoOrdinario AS GastoOrdinario
+            WHERE GastoOrdinario.ConsorcioID = #Ajustes.ConsorcioID
+                AND GastoOrdinario.Periodo = #Ajustes.Periodo
+                AND GastoOrdinario.Categoria = 'GASTOS GENERALES'
+        );
+        
+    PRINT '============== FIN DE importar.p_GenerarGastosOrdinariosDesdePagos ==============';
 END
 GO

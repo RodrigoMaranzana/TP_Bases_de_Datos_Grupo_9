@@ -171,16 +171,16 @@ BEGIN
 
     WITH PagosSumados AS (
         SELECT 
-            UF.ConsorcioID,
+            UnidadFuncional.ConsorcioID,
             DATEFROMPARTS(YEAR(Pago.Fecha), MONTH(Pago.Fecha), 1) AS Periodo,
             SUM(Pago.Importe) AS TotalPagado
         FROM contable.Pago AS Pago
         JOIN persona.CuentaBancaria AS CuentaBancaria 
             ON Pago.NroClaveUniformeID = CuentaBancaria.NroClaveUniformeID
-        JOIN infraestructura.UnidadFuncional AS UF
-            ON (CuentaBancaria.PersonaID = UF.PropietarioID OR CuentaBancaria.PersonaID = UF.InquilinoID)
+        JOIN infraestructura.UnidadFuncional AS UnidadFuncional
+            ON (CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID)
         GROUP BY 
-            UF.ConsorcioID, DATEFROMPARTS(YEAR(Pago.Fecha), MONTH(Pago.Fecha), 1)
+            UnidadFuncional.ConsorcioID, DATEFROMPARTS(YEAR(Pago.Fecha), MONTH(Pago.Fecha), 1)
     ),
     GastosActualesCTE AS (
         SELECT ConsorcioID, Periodo, SUM(Importe) AS TotalGastadoActual

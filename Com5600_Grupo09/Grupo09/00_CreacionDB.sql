@@ -60,7 +60,7 @@ GO
 -- eliminamos los SPs
 DROP PROCEDURE IF EXISTS importar.p_GenerarLotePagos;
 DROP PROCEDURE IF EXISTS importar.p_GenerarGastosExtraordinariosDesdePagos;
-DROP PROCEDURE IF EXISTS importar.p_CompensarGastosConPagos;
+DROP PROCEDURE IF EXISTS importar.p_GenerarGastosOrdinariosDesdePagos;
 DROP PROCEDURE IF EXISTS importar.p_ImportarGastosOrdinariosJSON;
 DROP PROCEDURE IF EXISTS importar.p_ImportarInquilinoPropietarioPorClaveUniformePorUF;
 DROP PROCEDURE IF EXISTS importar.p_ImportarPagosConsorcios;
