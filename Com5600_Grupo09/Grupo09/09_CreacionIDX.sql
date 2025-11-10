@@ -24,6 +24,7 @@ INCLUDE (NroClaveUniformeID, Importe, Concepto);
 END
 GO
 
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CuentaBancaria_PersonaID')
 BEGIN
 CREATE NONCLUSTERED INDEX IX_CuentaBancaria_PersonaID 
@@ -31,6 +32,7 @@ ON persona.CuentaBancaria (PersonaID)
 INCLUDE (NroClaveUniformeID);
 END
 GO
+
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_UnidadFuncional_PropietarioID')
 BEGIN

@@ -15,6 +15,12 @@
 USE Com5600G09;
 GO
 
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Creacion del SP general.p_Reporte1ReacaudacionSemanal */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
 -- REPORTE 1
 CREATE OR ALTER PROCEDURE general.p_Reporte1ReacaudacionSemanal
 (
@@ -30,8 +36,8 @@ CREATE OR ALTER PROCEDURE general.p_Reporte1ReacaudacionSemanal
     DROP TABLE IF EXISTS #PagosSemanales;
 
     SELECT 
-        YEAR(Pago.Fecha) AS Anio,
-        DATEPART(isowk, Pago.Fecha) AS NroSemana,
+       YEAR(Pago.Fecha) AS Anio,
+       DATEPART(isowk, Pago.Fecha) AS NroSemana,  -- isowk nos trae la semana
        -- sumo los importes de los pagos ordinarios y extraordinarios por separado para esa semana
        SUM(CASE WHEN Pago.Concepto = 'ORDINARIO' THEN Pago.Importe ELSE 0 END) AS RecaudacionOrdinaria,
        SUM(CASE WHEN Pago.Concepto = 'EXTRAORDINARIO' THEN Pago.Importe ELSE 0 END) AS RecaudacionExtraordinaria
@@ -48,7 +54,7 @@ CREATE OR ALTER PROCEDURE general.p_Reporte1ReacaudacionSemanal
         (Pago.Fecha >= @FechaInicio AND Pago.Fecha <= @FechaFin) AND
         UnidadFuncional.ConsorcioID = @ConsorcioID
     GROUP BY
-        YEAR(Pago.Fecha), DATEPART(isowk, Pago.Fecha);
+        YEAR(Pago.Fecha), DATEPART(isowk, Pago.Fecha); -- isowk nos trae la semana
 
     SELECT 
         PagosSemanales.Anio,
@@ -72,6 +78,10 @@ END
 GO
 
 
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Creacion del SP general.p_ReporteRecaudacionMensualPorDepartamento_XML */
+----------------------------------------------------------------------------------------------------------------------------------
+
 
 -- REPORTE 2
 CREATE OR ALTER PROCEDURE general.p_Reporte2RecaudacionMensualPorDepartamento_XML
@@ -80,16 +90,16 @@ CREATE OR ALTER PROCEDURE general.p_Reporte2RecaudacionMensualPorDepartamento_XM
     @Anio INT, -- parametro 2
     @Mes INT = NULL -- parametro 3, hasta que mes se calculara
 )
-    AS
-     BEGIN
-     SET NOCOUNT ON;
+AS
+    BEGIN
+    SET NOCOUNT ON;
 
     PRINT CHAR(10) + '============== INCIO DE p_Reporte2RecaudacionMensualPorDepartamento_XML ==============';
 
     DROP TABLE IF EXISTS #DatosFuente;
-     ----------------------------------------------------------------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------------------------------------------------
         /* BLOQUE GENERAL */
-     ----------------------------------------------------------------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------------------------------------------------------
     DECLARE @FechaInicio DATE; -- desde el 01/01 del anio que se ingreso
     DECLARE @FechaFin DATE;
 
@@ -104,7 +114,7 @@ CREATE OR ALTER PROCEDURE general.p_Reporte2RecaudacionMensualPorDepartamento_XM
         SET @FechaFin  = DATEADD(month, 1, DATEFROMPARTS(@Anio, @Mes, 1)); -- hasta el primer dia del mes siguiente a MesFin
     END
    
-     --vincula pagos con consorcios y la unidad funcional
+    --vincula pagos con consorcios y la unidad funcional
     SELECT
         (Consorcio.NombreDelConsorcio + ' - Piso ' + UnidadFuncional.Piso + ' Depto ' + UnidadFuncional.Departamento) AS UnidadFuncionalNombre,
         MONTH(Pago.Fecha) AS Mes,
@@ -125,30 +135,29 @@ CREATE OR ALTER PROCEDURE general.p_Reporte2RecaudacionMensualPorDepartamento_XM
         (Pago.Fecha >= @FechaInicio AND Pago.Fecha < @FechaFin) AND -- filtro de anio y mes
         (@ConsorcioID IS NULL OR Consorcio.ConsorcioID = @ConsorcioID) -- filtro de consorcio 
 
-
-        IF @Mes IS NULL
+    IF @Mes IS NULL
     BEGIN 
         SELECT
             UnidadFuncionalNombre,
-                ISNULL([1], 0.00) AS Enero,
-                ISNULL([2], 0.00) AS Febrero,
-                ISNULL([3], 0.00) AS Marzo,
-                ISNULL([4], 0.00) AS Abril,
-                ISNULL([5], 0.00) AS Mayo,
-                ISNULL([6], 0.00) AS Junio,
-                ISNULL([7], 0.00) AS Julio,
-                ISNULL([8], 0.00) AS Agosto,
-                ISNULL([9], 0.00) AS Septiembre,
-                ISNULL([10], 0.00) AS Octubre,
-                ISNULL([11], 0.00) AS Noviembre,
-                ISNULL([12], 0.00) AS Diciembre
-         FROM #DatosFuente
-         PIVOT (
-             SUM(Importe)
+            ISNULL([1], 0.00) AS Enero,
+            ISNULL([2], 0.00) AS Febrero,
+            ISNULL([3], 0.00) AS Marzo,
+            ISNULL([4], 0.00) AS Abril,
+            ISNULL([5], 0.00) AS Mayo,
+            ISNULL([6], 0.00) AS Junio,
+            ISNULL([7], 0.00) AS Julio,
+            ISNULL([8], 0.00) AS Agosto,
+            ISNULL([9], 0.00) AS Septiembre,
+            ISNULL([10], 0.00) AS Octubre,
+            ISNULL([11], 0.00) AS Noviembre,
+            ISNULL([12], 0.00) AS Diciembre
+        FROM #DatosFuente
+        PIVOT (
+            SUM(Importe)
             FOR Mes IN ([1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12]) -- columnas a crear
         ) AS PagosUFPorMes
-         ORDER BY 
-              UnidadFuncionalNombre
+        ORDER BY 
+            UnidadFuncionalNombre
         
         FOR XML PATH('RecaudacionMensualPorUF'), ROOT('Reporte2RecaudacionMensualPorDepartamento');
     END
@@ -173,6 +182,11 @@ END
 GO
 
 
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Creacion del SP general.p_Reporte3RecaudacionTotalSegunProcedencia */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
 -- REPORTE 3
 CREATE OR ALTER PROCEDURE general.p_Reporte3RecaudacionTotalSegunProcedencia
 (              
@@ -184,7 +198,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-PRINT CHAR(10) + '============== INCIO DE p_Reporte3RecaudacionTotalSegunProcedencia ==============';
+    PRINT CHAR(10) + '============== INCIO DE p_Reporte3RecaudacionTotalSegunProcedencia ==============';
 
     DROP TABLE IF EXISTS #RecaudacionPorConcepto;
 
@@ -219,6 +233,7 @@ PRINT CHAR(10) + '============== INCIO DE p_Reporte3RecaudacionTotalSegunProcede
     FROM #RecaudacionPorConcepto
     GROUP BY Anio, Mes
     ORDER BY Anio,Mes
+
     FOR XML PATH('RecaudacionTotal'), ROOT('Reporte3RecaudacionTotalSegunProcedencia');
 
     PRINT CHAR(10) + '============== FIN DE p_Reporte3RecaudacionTotalSegunProcedencia ==============';
@@ -226,6 +241,10 @@ PRINT CHAR(10) + '============== INCIO DE p_Reporte3RecaudacionTotalSegunProcede
 END
 GO
 
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Creacion del SP general.p_Reporte4MayoresGastosEIngresos */
+----------------------------------------------------------------------------------------------------------------------------------
 
 
 -- REPORTE 4
@@ -235,11 +254,12 @@ CREATE OR ALTER PROCEDURE general.p_Reporte4MayoresGastosEIngresos
     @FechaInicio DATE,   -- parametro 2 desde que fecha
     @FechaFin DATE      -- parametro 3 hasta que fecha
 )
- AS
-   BEGIN
+AS
+BEGIN
     SET NOCOUNT ON;
 
     PRINT CHAR(10) + '============== INCIO DE p_Reporte4MayoresGastosEIngresos ==============';
+
     DROP TABLE IF EXISTS #IngresosMensuales; 
 
         SELECT 
@@ -321,8 +341,12 @@ END
 GO
 
 
--- REPORTE 5
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Creacion del SP general.p_Reporte5PropietariosMorosos */
+----------------------------------------------------------------------------------------------------------------------------------
 
+
+-- REPORTE 5
 CREATE OR ALTER PROCEDURE general.p_Reporte5PropietariosMorosos
 (
     @ConsorcioID INT,    -- parametro 1 el consorcio analizar a seleccionar
@@ -330,8 +354,8 @@ CREATE OR ALTER PROCEDURE general.p_Reporte5PropietariosMorosos
     @FechaFin DATE,      -- parametro 3 hasta que fecha
     @MontoMinimoDeuda DECIMAL (10,2) = NULL  -- parametro opcional, si se quisiera filtrar a partir de un minimo de deuda
 )
-   AS
-   BEGIN
+AS
+BEGIN
     SET NOCOUNT ON;
 
     PRINT CHAR(10) + '============== INCIO DE p_Reporte5PropietariosMorosos ==============';
@@ -341,37 +365,44 @@ CREATE OR ALTER PROCEDURE general.p_Reporte5PropietariosMorosos
     -- calculo la deuda total acumlada para cada propietario en un consorcio en un rango de fechas
     SELECT
         Persona.PersonaID,
-        SUM(Prorrateo.Total) AS DeudaTotalAcumulada
+        SUM(Prorrateo.SaldoActual) AS SaldoNetoAcumulado
     INTO #DeudaPorPropietario 
     FROM contable.Prorrateo AS Prorrateo
     INNER JOIN persona.Persona AS Persona 
         ON Prorrateo.PersonaID = Persona.PersonaID
     WHERE 
         Prorrateo.ConsorcioID = @ConsorcioID AND
-        (Prorrateo.Periodo >= @FechaInicio AND Prorrateo.Periodo <= @FechaFin) AND
-        Persona.EsPropietario = 1 -- para asegurarse de que se este filtrando por propietario
+        (Prorrateo.Periodo >= @FechaInicio AND Prorrateo.Periodo <= @FechaFin)
+        AND Persona.EsPropietario = 1 -- para asegurarse de que se este filtrando por propietario
     GROUP BY 
         Persona.PersonaID
     HAVING -- si se ingresa el parametro de monto minimo se filtra tambien por ese valor
-        (@MontoMinimoDeuda IS NULL OR SUM(Prorrateo.Total) >= @MontoMinimoDeuda);
+        (@MontoMinimoDeuda IS NULL AND SUM(Prorrateo.SaldoActual) > 0) OR -- SUM(Prorrateo.SaldoActual) > 0 significa que debe dinero
+        (SUM(Prorrateo.SaldoActual) >= @MontoMinimoDeuda); -- si agregamos un monto minimo, necesitamos comparar contra ese valor
     
+
     SELECT TOP 3 -- busco a los 3 primeros y obtengo su informacion de contacto
         Persona.DNI,
         Persona.Nombre,
         Persona.Apellido,
         Persona.Mail,
         Persona.Telefono,
-        DeudaPorPropietario.DeudaTotalAcumulada
+        DeudaPorPropietario.SaldoNetoAcumulado
     FROM #DeudaPorPropietario AS DeudaPorPropietario
     INNER JOIN persona.Persona AS Persona
         ON DeudaPorPropietario.PersonaID = Persona.PersonaID
     ORDER BY
-        DeudaPorPropietario.DeudaTotalAcumulada DESC;
+        DeudaPorPropietario.SaldoNetoAcumulado DESC;
 
     PRINT CHAR(10) + '============== FIN DE p_Reporte5PropietariosMorosos ==============';
 
 END
 GO
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Creacion del SP general.p_Reporte6PagosEntreFechas */
+----------------------------------------------------------------------------------------------------------------------------------
 
 
 -- REPORTE 6
@@ -381,8 +412,8 @@ CREATE OR ALTER PROCEDURE general.p_Reporte6PagosEntreFechas
     @FechaInicio DATE,   -- parametro 2 desde que fecha
     @FechaFin DATE       -- parametro 3 hasta que fecha
 )
-   AS
-   BEGIN
+AS
+BEGIN
     SET NOCOUNT ON;
 
     PRINT CHAR(10) + '============== INCIO DE p_Reporte6PagosEntreFechas ==============';
@@ -407,19 +438,16 @@ CREATE OR ALTER PROCEDURE general.p_Reporte6PagosEntreFechas
         WHERE
             (Pago.Fecha >= @FechaInicio AND Pago.Fecha <= @FechaFin)
             AND Consorcio.ConsorcioID = @ConsorcioID
-
-        ),
-
-        PagosConSiguiente AS (
-        SELECT
-            UnidadFuncionalNombre,
-            FechaDePago,
-            Importe,
-            LEAD(FechaDePago, 1) OVER (PARTITION BY UnidadFuncionalNombre 
-                                        ORDER BY FechaDePago) AS FechaSiguientePago
-        FROM PagosOrdinariosUF        
-        )
-
+    ),
+    PagosConSiguiente AS (
+    SELECT
+        UnidadFuncionalNombre,
+        FechaDePago,
+        Importe,
+        LEAD(FechaDePago, 1) OVER (PARTITION BY UnidadFuncionalNombre 
+                                    ORDER BY FechaDePago) AS FechaSiguientePago
+    FROM PagosOrdinariosUF        
+    )
     SELECT 
         UnidadFuncionalNombre,
         CONVERT(VARCHAR(10), FechaDePago, 103) AS FechaDePago,
@@ -435,7 +463,14 @@ CREATE OR ALTER PROCEDURE general.p_Reporte6PagosEntreFechas
 END
 GO
 
+
+----------------------------------------------------------------------------------------------------------------------------------
+    /* Creacion del SP general.p_Reporte7GraficoDeGastosOrdinariosPorCategoria */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
 -- REPORTE 7 con API quickchart.io para generacion de graficos
+-- Se agrega el guardado de este reporte en una tabla especifica denominada general.ReporteGrafico
 CREATE OR ALTER PROCEDURE general.p_Reporte7GraficoDeGastosOrdinariosPorCategoria
 (
     @ConsorcioID INT,
@@ -504,8 +539,18 @@ BEGIN
         
     SET @Url = 'https://quickchart.io/chart?c=' + @Json + N'&width=512&height=512';
 
-    SELECT 
-        @Url AS URLQuickChart; --mostrar el resultado
+    INSERT INTO general.ReporteGrafico (
+        ConsorcioID,
+        PeriodoAnio,
+        PeriodoMes,
+        URLApi
+    )
+    VALUES (
+        @ConsorcioID,
+        @PeriodoAnio,
+        @PeriodoMes,
+        @Url
+    );
 
     PRINT CHAR(10) + '============== FIN DE p_Reporte7GraficoDeGastosOrdinariosPorCategoria ==============';
 END

@@ -48,7 +48,7 @@ BEGIN
     DECLARE @JsonDatos NVARCHAR(MAX);
     DECLARE @OpenrowsetJson NVARCHAR(MAX);
 
-    --- forma de 
+    --- SINGLE_CLOB representa que debe tratar todo el archivo como una unica cadena de texto
     SET @OpenrowsetJson = N'
         SELECT @JsonDatosSalida = BulkColumn
         FROM OPENROWSET(
@@ -59,13 +59,6 @@ BEGIN
     BEGIN TRY
 
         EXEC sp_executesql @OpenrowsetJson, N'@JsonDatosSalida NVARCHAR(MAX) OUTPUT', @JsonDatosSalida = @JsonDatos OUTPUT;
-
-        --- REVISAR
-        IF @JsonDatos IS NULL
-        BEGIN
-            PRINT('El archivo JSON no se pudo leer');
-            RETURN;
-        END
 
         SELECT -- seleccionamos lo que es de nuestro interes
             NombreDelConsorcio,
@@ -80,7 +73,7 @@ BEGIN
         INTO #JsonTemp
         FROM OPENJSON(@JsonDatos, '$') --vinculamos cada clave del Json
         WITH (
-            NombreDelConsorcio VARCHAR(255) '$."Nombre del consorcio"',
+            NombreDelConsorcio VARCHAR(64) '$."Nombre del consorcio"',
             Mes VARCHAR(20) '$.Mes',
             BANCARIOS VARCHAR(100) '$.BANCARIOS',
             LIMPIEZA VARCHAR(100) '$.LIMPIEZA',

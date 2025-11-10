@@ -26,6 +26,7 @@ GO
 	/* ELIMINACION DE TABLAS */
 ----------------------------------------------------------------------------------------------------------------------------------
 
+-- las eliminamos en el orden correcto para que no queden dependencias
 DROP TABLE IF EXISTS contable.Prorrateo;
 GO
 DROP TABLE IF EXISTS contable.EstadoFinanciero;
@@ -33,6 +34,7 @@ DROP TABLE IF EXISTS contable.Pago;
 DROP TABLE IF EXISTS contable.Comprobante;
 DROP TABLE IF EXISTS infraestructura.UnidadFuncional;
 DROP TABLE IF EXISTS general.LogRegistroRechazado;
+DROP TABLE IF EXISTS general.ReporteGrafico;
 GO
 DROP TABLE IF EXISTS contable.GastoOrdinario;
 DROP TABLE IF EXISTS contable.GastoExtraordinario;
@@ -51,15 +53,15 @@ GO
 
 CREATE TABLE general.Log (
     LogID INT IDENTITY(1,1) PRIMARY KEY,
-    Proceso VARCHAR(255) NOT NULL,
+    Proceso VARCHAR(64) NOT NULL, -- disminuido de 255 a 64, no hay nombres de proceso tan largos
     Tipo VARCHAR(11) NOT NULL CHECK (Tipo IN ('INFO', 'ADVERTENCIA', 'ERROR')),
     Mensaje VARCHAR(1024) NOT NULL,
     ReporteXML XML,
     NumeroDeError INT,
     MensajeDeError NVARCHAR(1024), -- para el retorno de ERROR_MESSAGE() que es nvarchar
     LineaDeError INT,
-	FechaHora AS SYSDATETIME(),
-    Usuario AS SUSER_SNAME()
+    FechaHora AS SYSDATETIME(), -- guardamos la fecha y hora del sistema
+    Usuario AS SUSER_SNAME(), -- guardamos el nombre del usuario que genero el reporte
 );
 GO
 
@@ -77,8 +79,8 @@ GO
 
 CREATE TABLE infraestructura.Consorcio(
 	ConsorcioID INT IDENTITY(1,1) PRIMARY KEY,
-	NombreDelConsorcio VARCHAR(255) NOT NULL,
-	Domicilio VARCHAR(255) NOT NULL,
+	NombreDelConsorcio VARCHAR(64) NOT NULL, -- luego de analizarlo, el promedio de longitud de nombre de una empresa es de entre 20 y 50 caracteres
+	Domicilio VARCHAR(128) NOT NULL,
 	CantidadUF INT NOT NULL,
 	Superficie DECIMAL(6,2) NOT NULL,
 
@@ -91,11 +93,26 @@ CREATE TABLE infraestructura.Consorcio(
 GO
 
 
+CREATE TABLE general.ReporteGrafico (
+    ReporteGraficoID INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ConsorcioID INT NOT NULL,
+    PeriodoAnio INT NOT NULL,
+    PeriodoMes INT NOT NULL,
+    URLApi VARCHAR(MAX) NOT NULL, 
+    FechaHora AS SYSDATETIME(), -- guardamos la fecha y hora del sistema
+    Usuario AS SUSER_SNAME(), -- guardamos el nombre del usuario que genero el reporte
+        
+    CONSTRAINT FK_ReporteGrafico_Consorcio FOREIGN KEY (ConsorcioID)
+        REFERENCES infraestructura.Consorcio(ConsorcioID)
+);
+GO
+
+
 CREATE TABLE persona.Persona(
 	PersonaID INT IDENTITY(1,1) PRIMARY KEY,
 	DNI INT,                -- se cifrara posteriormenete en el script 12_CifradoDB.sql
-	Nombre VARCHAR(255),    -- se cifrara posteriormenete en el script 12_CifradoDB.sql
-	Apellido VARCHAR(255),  -- se cifrara posteriormenete en el script 12_CifradoDB.sql
+	Nombre VARCHAR(128),    -- se cifrara posteriormenete en el script 12_CifradoDB.sql
+	Apellido VARCHAR(128),  -- se cifrara posteriormenete en el script 12_CifradoDB.sql
 	Mail VARCHAR(255),      -- se cifrara posteriormenete en el script 12_CifradoDB.sql
 	Telefono VARCHAR(20),   -- se cifrara posteriormenete en el script 12_CifradoDB.sql
 	EsPropietario BIT NOT NULL,
@@ -263,7 +280,7 @@ GO
 
 
 CREATE TABLE contable.Pago(
-	PagoID INT IDENTITY(10000,1) PRIMARY KEY,
+	PagoID INT IDENTITY(10000,1) PRIMARY KEY, -- partimos de 10000 porque consideramos al maestro como "La Verdad"
 	Fecha DATE NOT NULL,
 	NroClaveUniformeID CHAR(22) NOT NULL, -- se cifrara posteriormenete en el script 12_CifradoDB.sql
 	Concepto CHAR(20) NOT NULL CHECK (Concepto IN ('ORDINARIO','EXTRAORDINARIO')),
@@ -289,19 +306,22 @@ CREATE TABLE contable.Prorrateo(
 
 	ExpOrd DECIMAL(12,2) NOT NULL CHECK (ExpOrd >= 0),
 	ExpExtraOrd DECIMAL(12,2) NOT NULL CHECK (ExpExtraOrd >= 0),
-	SaldoAnterior DECIMAL(12,2) NOT NULL, --entre saldo y pagos, se obtiene deuda, consideramos valores negativos
+	SaldoAnterior DECIMAL(12,2) NOT NULL, --entre saldo y pagos, se obtiene deuda, consideramos valores negativos como saldo acreedor
 	PagosRecibidos DECIMAL(12,2) NOT NULL CHECK (PagosRecibidos >= 0),
 	InteresPorMora DECIMAL(12,2) NOT NULL CHECK (InteresPorMora >= 0),
 
 	FormaEnvioPropietario VARCHAR(20) NOT NULL CHECK (FormaEnvioPropietario IN ('EMAIL', 'WHATSAPP', 'IMPRESO')),
 	FormaEnvioInquilino VARCHAR(20) CHECK (FormaEnvioInquilino IS NULL OR FormaEnvioInquilino IN ('EMAIL', 'WHATSAPP', 'IMPRESO')),
 
-	Deuda AS (SaldoAnterior - PagosRecibidos),
-	Total AS (
-		(SaldoAnterior - PagosRecibidos) + 
+    Deuda AS ( -- calculamos la deuda como el acumulado de lo anterior, mas intereses, mas expensas actuales
+		SaldoAnterior + 
 		InteresPorMora + 
 		ExpOrd + 
 		ExpExtraOrd
+	),
+
+	SaldoActual AS ( -- es positivo, significa que hay deuda, si es cero se ha pagado la totalidad, si es negativo se ha pagado de más
+		(SaldoAnterior + InteresPorMora + ExpOrd + ExpExtraOrd) - PagosRecibidos
 	),
 
 	CONSTRAINT FK_Prorrateo_UnidadFuncional FOREIGN KEY  (ConsorcioID, NroUnidadFuncionalID) 
@@ -328,7 +348,7 @@ CREATE TABLE contable.EstadoFinanciero(
 	EgresosPorGastos DECIMAL(12,2) NOT NULL CHECK (EgresosPorGastos >= 0),
 
 	SaldoCierre AS (
-		(SaldoAnterior + PagosEnTermino + PagosAdeudados + PagosAdelantados) - EgresosPorGastos
+		(SaldoAnterior + PagosEnTermino + PagosAdeudados) - EgresosPorGastos
 	),
 
 	CONSTRAINT FK_EstadoFinanciero_Consorcio FOREIGN KEY (ConsorcioID) REFERENCES infraestructura.Consorcio(ConsorcioID),
@@ -500,8 +520,12 @@ GO
 ----------------------------------------------------------------------------------------------------------------------------------
 
 
+----------------------------------------------------------------------------------------------------------------------------------
+	/* STORED PROCEDURE general.p_RegistrarLog */
+----------------------------------------------------------------------------------------------------------------------------------
+
 CREATE OR ALTER PROCEDURE general.p_RegistrarLog
-    @Proceso VARCHAR(255),
+    @Proceso VARCHAR(64),
     @Tipo VARCHAR(11),
     @Mensaje VARCHAR(1024),
     @ReporteXML XML = NULL,
@@ -518,9 +542,9 @@ BEGIN
             @Tipo, 
             @Mensaje, 
             @ReporteXML, 
-            ERROR_NUMBER(), 
-            ERROR_MESSAGE(), 
-            ERROR_LINE()
+            ERROR_NUMBER(), -- retorna el ultimo error de SQL
+            ERROR_MESSAGE(), -- retorna el texto asociado al numero de error anterior
+            ERROR_LINE() -- retorna el numero de linea donde ocurrio el error
         );
     END
     ELSE
@@ -529,13 +553,17 @@ BEGIN
         VALUES (@Proceso, @Tipo, @Mensaje, @ReporteXML);
     END
 
-	SET @LogIDOut = SCOPE_IDENTITY();
+	SET @LogIDOut = SCOPE_IDENTITY(); -- retorna el valor identity de la ultima insercion
 END;
 GO
 
 
+----------------------------------------------------------------------------------------------------------------------------------
+	/* STORED PROCEDURE contable.p_CalcularProrrateoMensual */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
 CREATE OR ALTER PROCEDURE contable.p_CalcularProrrateoMensual
-    @ConsorcioID INT,
     @Periodo DATE -- debe ser el primer dia del mes
 AS
 BEGIN
@@ -546,27 +574,11 @@ BEGIN
     DROP TABLE IF EXISTS #DatosCalculados;
 
     DECLARE @PeriodoFin DATE = EOMONTH(@Periodo);
-
-    DECLARE @GastoOrdTotal DECIMAL(12, 2);
-    DECLARE @GastoExtraordTotal DECIMAL(12, 2);
-    
-    SELECT @GastoOrdTotal = ISNULL(SUM(GastoOrdinario.Importe), 0)
-    FROM contable.GastoOrdinario GastoOrdinario
-    WHERE GastoOrdinario.ConsorcioID = @ConsorcioID AND GastoOrdinario.Periodo = @Periodo;
-
-    SELECT @GastoExtraordTotal = ISNULL(SUM(GastoExtraordinario.Importe), 0)
-    FROM contable.GastoExtraordinario GastoExtraordinario
-    WHERE GastoExtraordinario.ConsorcioID = @ConsorcioID AND GastoExtraordinario.Periodo = @Periodo;
-
-    DECLARE @SuperficieTotalConsorcio DECIMAL(10, 2);
-
-    SELECT @SuperficieTotalConsorcio = ISNULL(Consorcio.Superficie, 0)
-    FROM infraestructura.Consorcio Consorcio
-    WHERE Consorcio.ConsorcioID = @ConsorcioID;
-
+    DECLARE @PrimerDiaMesSiguiente DATE = DATEADD(month, 1, @Periodo); -- consideramos que se envia la expensa del mes anterior a pagar este mes
 
     CREATE TABLE #DatosCalculados (
-        NroUnidadFuncionalID INT PRIMARY KEY,
+        ConsorcioID INT NOT NULL,
+        NroUnidadFuncionalID INT,
         PersonaID INT NOT NULL,
         NroClaveUniformeID CHAR(22) NOT NULL,
         SuperficieTotal DECIMAL(10,2) NOT NULL,
@@ -575,34 +587,55 @@ BEGIN
         ExpExtraOrd DECIMAL(12,2) NOT NULL,
         PagosRecibidos DECIMAL(12,2) NOT NULL,
         FormaEnvioPropietario VARCHAR(20) NOT NULL,
-        FormaEnvioInquilino VARCHAR(20)
+        FormaEnvioInquilino VARCHAR(20),
+        PRIMARY KEY (ConsorcioID, NroUnidadFuncionalID)
     );
 
-    DECLARE @PrimerDiaMesSiguiente DATE = DATEADD(month, 1, @Periodo); -- consideramos que se envia la expensa del mes anterior a pagar este mes
+    SELECT
+        Consorcio.ConsorcioID,
+        ISNULL(Consorcio.Superficie, 0) AS SuperficieTotalConsorcio,
+        ISNULL(LeftJoinConsorcio.GastoOrdTotal, 0) AS GastoOrdTotal,
+        ISNULL(LeftJoinGastoExtraord.GastoExtraordTotal, 0) AS GastoExtraordTotal
+    INTO #TotalesConsorcio
+    FROM infraestructura.Consorcio AS Consorcio
+    LEFT JOIN ( -- con los dos left join obtenemos los gastos ord y extraord para el consorcio en este periodo
+        SELECT ConsorcioID, SUM(Importe) AS GastoOrdTotal -- hacemos la suma de todos los gastos ord individuales
+        FROM contable.GastoOrdinario
+        WHERE Periodo = @Periodo
+        GROUP BY ConsorcioID
+    ) AS LeftJoinConsorcio ON Consorcio.ConsorcioID = LeftJoinConsorcio.ConsorcioID
+    LEFT JOIN (
+        SELECT ConsorcioID, SUM(Importe) AS GastoExtraordTotal -- hacemos la suma de todos los gastos extraord individuales
+        FROM contable.GastoExtraordinario
+        WHERE Periodo = @Periodo
+        GROUP BY ConsorcioID
+    ) AS LeftJoinGastoExtraord ON Consorcio.ConsorcioID = LeftJoinGastoExtraord.ConsorcioID;
 
     INSERT INTO #DatosCalculados (
-        NroUnidadFuncionalID, PersonaID, NroClaveUniformeID, 
-        SuperficieTotal, PorcentajeM2, 
-        ExpOrd, ExpExtraOrd, 
-        PagosRecibidos, FormaEnvioPropietario, FormaEnvioInquilino
+        ConsorcioID,
+        NroUnidadFuncionalID, 
+        PersonaID, 
+        NroClaveUniformeID, 
+        SuperficieTotal, 
+        PorcentajeM2, 
+        ExpOrd, 
+        ExpExtraOrd, 
+        PagosRecibidos, 
+        FormaEnvioPropietario, 
+        FormaEnvioInquilino
     )
     SELECT
+        UnidadFuncional.ConsorcioID,
         UnidadFuncional.NroUnidadFuncionalID,
         UnidadFuncional.PropietarioID,
         UnidadFuncional.NroClaveUniformeID,
         (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)),        
-        ((ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) * 100 ) / @SuperficieTotalConsorcio,
-        (@GastoOrdTotal * (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) ) / @SuperficieTotalConsorcio,
-
-        (ISNULL((
-            SELECT SUM(Pago.Importe) -- sumamos todos los pagos recibidos que corresponden a esta UF
-            FROM contable.Pago Pago
-            WHERE Pago.NroClaveUniformeID = UnidadFuncional.NroClaveUniformeID
-            AND Pago.Fecha BETWEEN @Periodo AND @PeriodoFin AND Pago.Concepto = 'EXTRAORDINARIO'
-        ), 0) * (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) ) / @SuperficieTotalConsorcio,
+        ((ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) * 100 ) / Totales.SuperficieTotalConsorcio,
+        (Totales.GastoOrdTotal * (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) ) / Totales.SuperficieTotalConsorcio,
+        (Totales.GastoExtraordTotal * (ISNULL(UnidadFuncional.Superficie, 0) + ISNULL(UnidadFuncional.SuperficieCochera, 0) + ISNULL(UnidadFuncional.SuperficieBaulera, 0)) ) / Totales.SuperficieTotalConsorcio,
 
         ISNULL((
-            SELECT SUM(Pago.Importe) -- sumamos todos los pagos recibidos que corresponden a esta UF
+            SELECT SUM(Pago.Importe) -- sumamos todos los pagos recibidos que corresponden a esta UnidadFuncional
             FROM contable.Pago Pago
             WHERE Pago.NroClaveUniformeID = UnidadFuncional.NroClaveUniformeID
             AND Pago.Fecha BETWEEN @Periodo AND @PeriodoFin
@@ -613,7 +646,7 @@ BEGIN
             WHEN Propietario.Telefono IS NOT NULL THEN 'WHATSAPP'
             ELSE 'IMPRESO'
         END, 
-        CASE -- tambien vemos si existe un inquilino en la UF
+        CASE -- tambien vemos si existe un inquilino en la UnidadFuncional
             WHEN UnidadFuncional.InquilinoID IS NULL THEN NULL
             WHEN Inquilino.Mail IS NOT NULL THEN 'EMAIL'
             WHEN Inquilino.Telefono IS NOT NULL THEN 'WHATSAPP'
@@ -621,11 +654,13 @@ BEGIN
         END
 
     FROM infraestructura.UnidadFuncional UnidadFuncional
+    INNER JOIN #TotalesConsorcio AS Totales
+        ON UnidadFuncional.ConsorcioID = Totales.ConsorcioID
     INNER JOIN persona.Persona Propietario -- hacemos join con las perosnas para obtener su telefono y email
         ON UnidadFuncional.PropietarioID = Propietario.PersonaID
     LEFT JOIN persona.Persona Inquilino
         ON UnidadFuncional.InquilinoID = Inquilino.PersonaID
-    WHERE UnidadFuncional.ConsorcioID = @ConsorcioID;
+    WHERE Totales.SuperficieTotalConsorcio > 0;
 
     BEGIN TRY
         BEGIN TRANSACTION; -- como vamos a actualizar los prorrateos iniciamos una transaccion
@@ -640,34 +675,43 @@ BEGIN
             Prorrateo.FormaEnvioInquilino = #DatosCalculados.FormaEnvioInquilino
         FROM contable.Prorrateo Prorrateo
         INNER JOIN #DatosCalculados
-            ON Prorrateo.NroUnidadFuncionalID = #DatosCalculados.NroUnidadFuncionalID
+            ON Prorrateo.ConsorcioID = #DatosCalculados.ConsorcioID AND
+            Prorrateo.NroUnidadFuncionalID = #DatosCalculados.NroUnidadFuncionalID
         WHERE
-            Prorrateo.ConsorcioID = @ConsorcioID AND
             Prorrateo.Periodo = @Periodo;
 
         WITH ProrrateoAnterior AS ( -- buscamos el prorrateo anterior para insertarlo en el nuevo prorrateo
             SELECT
-                ProrrateoAnterior.Total, 
+                ProrrateoAnterior.SaldoActual, 
                 ProrrateoAnterior.FechaVencimiento1, 
                 ProrrateoAnterior.FechaVencimiento2,
+                ProrrateoAnterior.ConsorcioID,
                 ProrrateoAnterior.NroUnidadFuncionalID,
                 ROW_NUMBER() OVER(
-                    PARTITION BY ProrrateoAnterior.NroUnidadFuncionalID 
+                    PARTITION BY ProrrateoAnterior.ConsorcioID, ProrrateoAnterior.NroUnidadFuncionalID
                     ORDER BY ProrrateoAnterior.Periodo DESC
-                ) AS Numero
+                ) AS Numero -- este numero representa el numero de regsitro para cada UF
             FROM contable.Prorrateo ProrrateoAnterior
-            WHERE ProrrateoAnterior.ConsorcioID = @ConsorcioID
-                AND ProrrateoAnterior.Periodo < @Periodo
+            WHERE ProrrateoAnterior.Periodo < @Periodo
         )
-
         INSERT INTO contable.Prorrateo (
-            ConsorcioID, NroUnidadFuncionalID, PersonaID, Periodo, FechaVencimiento1, FechaVencimiento2,
-            PorcentajePorM2, ExpOrd, ExpExtraOrd, 
-            SaldoAnterior, PagosRecibidos, InteresPorMora,
-            FormaEnvioPropietario, FormaEnvioInquilino
+            ConsorcioID,
+            NroUnidadFuncionalID, 
+            PersonaID,
+            Periodo,
+            FechaVencimiento1,
+            FechaVencimiento2,
+            PorcentajePorM2,
+            ExpOrd, 
+            ExpExtraOrd, 
+            SaldoAnterior,
+            PagosRecibidos,
+            InteresPorMora,
+            FormaEnvioPropietario,
+            FormaEnvioInquilino
         )
         SELECT
-            @ConsorcioID,
+            #DatosCalculados.ConsorcioID,
             #DatosCalculados.NroUnidadFuncionalID,
             #DatosCalculados.PersonaID,
             @Periodo,
@@ -676,13 +720,13 @@ BEGIN
             #DatosCalculados.PorcentajeM2,
             #DatosCalculados.ExpOrd,
             #DatosCalculados.ExpExtraOrd,
-            ISNULL(ProrrateoAnterior.Total, 0.00),
+            ISNULL(ProrrateoAnterior.SaldoActual, 0.00),
             #DatosCalculados.PagosRecibidos,
             CASE -- lo comparamos con el dia de hoy para saber si esta vencida o no
-                WHEN ISNULL(ProrrateoAnterior.Total, 0.00) > 0 THEN
-                    CASE
-                        WHEN GETDATE() > ProrrateoAnterior.FechaVencimiento2 THEN ISNULL(ProrrateoAnterior.Total, 0.00) * 0.05
-                        WHEN GETDATE() > ProrrateoAnterior.FechaVencimiento1 THEN ISNULL(ProrrateoAnterior.Total, 0.00) * 0.02
+                WHEN ISNULL(ProrrateoAnterior.SaldoActual, 0.00) > 0 THEN
+                    CASE -- dependiendo de la fecha, asignamos un interes 0, 2% o 5%
+                        WHEN GETDATE() > ProrrateoAnterior.FechaVencimiento1 THEN ISNULL(ProrrateoAnterior.SaldoActual, 0.00) * 0.02
+                        WHEN GETDATE() > ProrrateoAnterior.FechaVencimiento2 THEN ISNULL(ProrrateoAnterior.SaldoActual, 0.00) * 0.05
                         ELSE 0.00 
                     END
                 ELSE 0.00
@@ -691,13 +735,14 @@ BEGIN
             #DatosCalculados.FormaEnvioInquilino
         FROM #DatosCalculados
         LEFT JOIN ProrrateoAnterior
-            ON #DatosCalculados.NroUnidadFuncionalID = ProrrateoAnterior.NroUnidadFuncionalID
+            ON #DatosCalculados.ConsorcioID = ProrrateoAnterior.ConsorcioID
+            AND #DatosCalculados.NroUnidadFuncionalID = ProrrateoAnterior.NroUnidadFuncionalID
             AND ProrrateoAnterior.Numero = 1
-        LEFT JOIN contable.Prorrateo Prorrateo
+        LEFT JOIN contable.Prorrateo AS Prorrateo
             ON #DatosCalculados.NroUnidadFuncionalID = Prorrateo.NroUnidadFuncionalID
-            AND Prorrateo.ConsorcioID = @ConsorcioID
+            AND Prorrateo.ConsorcioID = #DatosCalculados.ConsorcioID
             AND Prorrateo.Periodo = @Periodo
-        WHERE Prorrateo.NroUnidadFuncionalID IS NULL;
+        WHERE Prorrateo.ProrrateoID IS NULL;
 
         COMMIT TRANSACTION;
         PRINT CHAR(10) + '============== FIN DE p_CalcularProrrateoMensual ==============';
@@ -713,9 +758,120 @@ END
 GO
 
 
+
+----------------------------------------------------------------------------------------------------------------------------------
+	/* STORED PROCEDURE contable.p_CalcularEstadoFinanciero */
+----------------------------------------------------------------------------------------------------------------------------------
+
+
+
+CREATE OR ALTER PROCEDURE contable.p_CalcularEstadoFinanciero
+    @Periodo DATE -- debe ser el primer dia del mes
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    PRINT CHAR(10) + '============== INCIO DE p_CalcularEstadoFinanciero ==============';
+    SET NOCOUNT ON;
+
+    DECLARE @PeriodoFin DATE = EOMONTH(@Periodo);
+    DROP TABLE IF EXISTS #EstadosFinancieros;
+
+    WITH SaldosAnteriores AS (
+        SELECT -- seleccionamos el saldo de los estados financieros anteriores para todos los consorcios
+            Consorcio.ConsorcioID,
+            ISNULL(EstadoFinanciero.SaldoCierre, 0) AS SaldoAnterior
+        FROM infraestructura.Consorcio AS Consorcio
+        LEFT JOIN contable.EstadoFinanciero AS EstadoFinanciero
+            ON Consorcio.ConsorcioID = EstadoFinanciero.ConsorcioID
+            AND EstadoFinanciero.Periodo = DATEADD(month, -1, @Periodo) -- restamos un mes al periodo
+    ),
+    Egresos AS ( -- sumamos para cada consorcio el total de gastos
+        SELECT ConsorcioID, SUM(Importe) AS TotalEgresos
+        FROM ( -- seleccionamos tanto los gastos ordinarios como los extraordinarios para el mismo periodo
+            SELECT ConsorcioID, Importe FROM contable.GastoOrdinario WHERE Periodo = @Periodo
+            UNION ALL
+            SELECT ConsorcioID, Importe FROM contable.GastoExtraordinario WHERE Periodo = @Periodo
+        )AS GastosOrdYExtraord
+        GROUP BY ConsorcioID -- agrupamos por consorcio
+    ),
+    Pagos AS (
+        SELECT -- para cada consorcio agrupamos los pagos que recibio en este periodo como en termino o adeudados
+            UnidadFuncional.ConsorcioID,
+            ISNULL(SUM(CASE WHEN DAY(Pago.Fecha) <= 10 THEN Pago.Importe ELSE 0 END), 0) AS PagoEnTermino,
+            ISNULL(SUM(CASE WHEN DAY(Pago.Fecha) > 10 THEN Pago.Importe ELSE 0 END), 0) AS PagoAdeudados -- son adeudadosn si son posteriores al primer vencimiento
+        FROM contable.Pago AS Pago
+        JOIN persona.CuentaBancaria AS CuentaBancaria
+            ON Pago.NroClaveUniformeID = CuentaBancaria.NroClaveUniformeID
+        JOIN infraestructura.UnidadFuncional AS UnidadFuncional
+            ON CuentaBancaria.PersonaID = UnidadFuncional.PropietarioID OR
+            CuentaBancaria.PersonaID = UnidadFuncional.InquilinoID
+        WHERE
+            Pago.Fecha BETWEEN @Periodo AND @PeriodoFin -- pagos entre el primer dia y el ultimo dia para el periodo dado
+        GROUP BY
+            UnidadFuncional.ConsorcioID
+    )
+    SELECT -- agrupamos para generar el estado financiero en limpio
+        SaldosAnteriores.ConsorcioID,
+        SaldosAnteriores.SaldoAnterior,
+        ISNULL(Egresos.TotalEgresos, 0) AS EgresosPorGastos,
+        ISNULL(Pagos.PagoEnTermino, 0) AS PagoEnTermino,
+        ISNULL(Pagos.PagoAdeudados, 0) AS PagoAdeudado,
+        0.00 AS PagosAdelantados
+    INTO #EstadosFinancieros
+    FROM SaldosAnteriores
+    LEFT JOIN Egresos
+        ON SaldosAnteriores.ConsorcioID = Egresos.ConsorcioID
+    LEFT JOIN Pagos
+        ON SaldosAnteriores.ConsorcioID = Pagos.ConsorcioID;
+
+    UPDATE EstadoFinanciero
+    SET
+        EstadoFinanciero.SaldoAnterior = #EstadosFinancieros.SaldoAnterior,
+        EstadoFinanciero.PagosEnTermino = #EstadosFinancieros.PagoEnTermino,
+        EstadoFinanciero.PagosAdeudados = #EstadosFinancieros.PagoAdeudado,
+        EstadoFinanciero.PagosAdelantados = #EstadosFinancieros.PagosAdelantados,
+        EstadoFinanciero.EgresosPorGastos = #EstadosFinancieros.EgresosPorGastos
+    FROM contable.EstadoFinanciero EstadoFinanciero
+    JOIN #EstadosFinancieros
+        ON EstadoFinanciero.ConsorcioID = #EstadosFinancieros.ConsorcioID
+    WHERE EstadoFinanciero.Periodo = @Periodo; -- actualizamos estados financiers anteriores, ya insertados, por si hubo cambios
+
+    INSERT INTO contable.EstadoFinanciero ( -- insertamos el nuevo estado financiero
+        ConsorcioID, 
+        Periodo, 
+        SaldoAnterior, 
+        PagosEnTermino, 
+        PagosAdeudados, 
+        PagosAdelantados, 
+        EgresosPorGastos
+    )
+    SELECT 
+        #EstadosFinancieros.ConsorcioID,
+        @Periodo,
+        #EstadosFinancieros.SaldoAnterior,
+        #EstadosFinancieros.PagoEnTermino,
+        #EstadosFinancieros.PagoAdeudado,
+        #EstadosFinancieros.PagosAdelantados,
+        #EstadosFinancieros.EgresosPorGastos
+    FROM #EstadosFinancieros
+    WHERE NOT EXISTS (
+        SELECT 1 
+        FROM contable.EstadoFinanciero EstadoFinanciero
+        WHERE
+            EstadoFinanciero.ConsorcioID = #EstadosFinancieros.ConsorcioID -- siempre que el estado financiero no se repita
+            AND EstadoFinanciero.Periodo = @Periodo -- para el mismo consorcio y periodo
+    );
+
+    PRINT CHAR(10) + '============== FIN DE p_CalcularEstadoFinanciero ==============';
+END
+GO
+
+
 ----------------------------------------------------------------------------------------------------------------------------------
 	/* INSERT DE REGISTROS DE CONTROL */
 ----------------------------------------------------------------------------------------------------------------------------------
+
 
 INSERT INTO persona.Persona (
 	DNI,

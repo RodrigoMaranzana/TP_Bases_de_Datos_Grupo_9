@@ -28,8 +28,8 @@ BEGIN
     DROP TABLE IF EXISTS #ProveedoresTempFiltrada;
 
     CREATE TABLE #ConsorciosXLSXTemp (
-        NombreDelConsorcio VARCHAR(255) COLLATE Latin1_General_CI_AI,
-        Domicilio VARCHAR(255) COLLATE Latin1_General_CI_AI,
+        NombreDelConsorcio VARCHAR(64) COLLATE Latin1_General_CI_AI,
+        Domicilio VARCHAR(128) COLLATE Latin1_General_CI_AI,
         CantidadUnidadesFuncionales INT,
         M2Totales DECIMAL(6,2)
     );
@@ -38,7 +38,7 @@ BEGIN
         Categoria VARCHAR(255) COLLATE Latin1_General_CI_AI,
         RazonSocial VARCHAR(255) COLLATE Latin1_General_CI_AI,
         Detalle VARCHAR(255) COLLATE Latin1_General_CI_AI,
-        NombreDelConsorcio VARCHAR(255) COLLATE Latin1_General_CI_AI
+        NombreDelConsorcio VARCHAR(64) COLLATE Latin1_General_CI_AI
     );
 
     BEGIN TRY

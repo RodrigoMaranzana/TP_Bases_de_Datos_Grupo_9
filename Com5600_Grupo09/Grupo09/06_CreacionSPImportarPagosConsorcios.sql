@@ -40,7 +40,7 @@ BEGIN
         /* BLOQUE GENERAL */
         ----------------------------------------------------------------------------------------------------------------------------------
 
-        DECLARE @Proceso VARCHAR(128) = 'importar.p_ImportarUnidadFuncional';
+        DECLARE @Proceso VARCHAR(128) = 'importar.p_ImportarPagosConsorcios';
 
         DECLARE @BulkInsert NVARCHAR(MAX);
 

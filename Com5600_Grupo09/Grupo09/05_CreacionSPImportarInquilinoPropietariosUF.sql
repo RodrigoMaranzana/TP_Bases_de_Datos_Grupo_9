@@ -87,7 +87,7 @@ BEGIN
             SELECT
                 RegistroID,
                 CASE WHEN general.f_RemoverBlancos(CvuCbu) LIKE '%[^0-9]%' THEN NULL ELSE CAST(general.f_RemoverBlancos(CvuCbu) AS VARCHAR(22)) END AS NroClaveUniforme,
-                CAST(UPPER(LTRIM(RTRIM(NombreDelConsorcio))) AS VARCHAR(255)) AS NombreDelConsorcio,
+                CAST(UPPER(LTRIM(RTRIM(NombreDelConsorcio))) AS VARCHAR(64)) AS NombreDelConsorcio,
                 TRY_CAST(NroUnidadFuncional AS INT) AS NroUnidadFuncional,
                 CAST(LTRIM(RTRIM(Piso)) AS CHAR(2)) AS Piso,
                 CAST(UPPER(LTRIM(RTRIM(Departamento))) AS CHAR(1)) AS Departamento

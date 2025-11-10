@@ -93,7 +93,7 @@ BEGIN
         WITH CTE AS ( -- limpio los registros de la tabla y doy formato
             SELECT
                 RegistroID,
-                CAST(UPPER(LTRIM(RTRIM(NombreDelConsorcio))) AS VARCHAR(255)) AS NombreDelConsorcio,
+                CAST(UPPER(LTRIM(RTRIM(NombreDelConsorcio))) AS VARCHAR(64)) AS NombreDelConsorcio,
                 TRY_CAST(NroUnidadFuncional AS INT) AS NroUnidadFuncionalID,
                 CAST(UPPER(LTRIM(RTRIM(Piso))) AS CHAR(2)) AS Piso,
                 CAST(UPPER(LTRIM(RTRIM(Departamento))) AS CHAR(1)) AS Departamento,

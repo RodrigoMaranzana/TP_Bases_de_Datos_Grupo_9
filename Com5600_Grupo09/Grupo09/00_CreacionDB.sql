@@ -25,7 +25,7 @@ EXEC sp_configure 'show advanced options', 1;
 RECONFIGURE;
 GO
 
-EXEC sp_configure 'Ad Hoc Distributed Queries', 1;
+EXEC sp_configure 'Ad Hoc Distributed Queries', 1; -- habilita consultas con openrowset dentro de los SPs
 RECONFIGURE;
 GO
 
@@ -33,6 +33,7 @@ GO
 	/* ELIMINACION DE TABLAS */
 ----------------------------------------------------------------------------------------------------------------------------------
 
+-- las eliminamos en el orden correcto para que no queden dependencias
 DROP TABLE IF EXISTS contable.Prorrateo;
 GO
 DROP TABLE IF EXISTS contable.EstadoFinanciero;
@@ -40,6 +41,7 @@ DROP TABLE IF EXISTS contable.Pago;
 DROP TABLE IF EXISTS contable.Comprobante;
 DROP TABLE IF EXISTS infraestructura.UnidadFuncional;
 DROP TABLE IF EXISTS general.LogRegistroRechazado;
+DROP TABLE IF EXISTS general.ReporteGrafico;
 GO
 DROP TABLE IF EXISTS contable.GastoOrdinario;
 DROP TABLE IF EXISTS contable.GastoExtraordinario;
@@ -55,7 +57,10 @@ GO
 	/* ELIMINACION DE FUNCIONES Y STORED PROCEDURES */
 ----------------------------------------------------------------------------------------------------------------------------------
 
+-- eliminamos los SPs
 DROP PROCEDURE IF EXISTS importar.p_GenerarLotePagos;
+DROP PROCEDURE IF EXISTS importar.p_GenerarGastosExtraordinariosDesdePagos;
+DROP PROCEDURE IF EXISTS importar.p_CompensarGastosConPagos;
 DROP PROCEDURE IF EXISTS importar.p_ImportarGastosOrdinariosJSON;
 DROP PROCEDURE IF EXISTS importar.p_ImportarInquilinoPropietarioPorClaveUniformePorUF;
 DROP PROCEDURE IF EXISTS importar.p_ImportarPagosConsorcios;
@@ -71,7 +76,9 @@ DROP PROCEDURE IF EXISTS general.p_Reporte5PropietariosMorosos;
 DROP PROCEDURE IF EXISTS general.p_Reporte6PagosEntreFechas;
 DROP PROCEDURE IF EXISTS general.p_Reporte7GraficoDeGastosOrdinariosPorCategoria;
 DROP PROCEDURE IF EXISTS contable.p_CalcularProrrateoMensual;
+DROP PROCEDURE IF EXISTS contable.p_CalcularEstadoFinanciero;
 GO
+-- eliminamos las funciones
 DROP FUNCTION IF EXISTS general.f_RemoverBlancos;
 DROP FUNCTION IF EXISTS general.f_NormalizarTelefono;
 DROP FUNCTION IF EXISTS general.f_NormalizarDNI;
@@ -84,6 +91,7 @@ GO
 	/* ELIMINACION DE SCHEMAS */
 ----------------------------------------------------------------------------------------------------------------------------------
 
+--eliminamos los schemas
 DROP SCHEMA IF EXISTS importar;
 DROP SCHEMA IF EXISTS infraestructura;
 DROP SCHEMA IF EXISTS persona;
@@ -98,9 +106,9 @@ GO
 USE master;
 GO
 
-IF DB_ID('Com5600G09') IS NOT NULL
-BEGIN
-    ALTER DATABASE Com5600G09 SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+IF DB_ID('Com5600G09') IS NOT NULL 
+BEGIN -- ponemos a la DB en modo un solo usuario para forzar la desconexion
+    ALTER DATABASE Com5600G09 SET SINGLE_USER WITH ROLLBACK IMMEDIATE; 
     DROP DATABASE Com5600G09;
 END
 GO
@@ -109,10 +117,10 @@ GO
 	/* CREACION DE LA BASE DE DATOS */
 ----------------------------------------------------------------------------------------------------------------------------------
 
-IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'Com5600G09')
+IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'Com5600G09') -- si no existe una base con el nombre Com5600G09 la crea
 BEGIN
     CREATE DATABASE Com5600G09
-    COLLATE Latin1_General_CI_AI;
+    COLLATE Latin1_General_CI_AI; -- collate elejido, Case Insensitive Accent Insensitive
 END
 GO
 

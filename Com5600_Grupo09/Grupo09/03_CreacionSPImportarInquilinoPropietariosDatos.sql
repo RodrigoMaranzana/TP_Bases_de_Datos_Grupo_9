@@ -92,8 +92,8 @@ BEGIN
         WITH CTE AS ( -- limpio los registros de la tabla y doy formato
             SELECT
                 RegistroID,
-                CAST(UPPER(LTRIM(RTRIM(Nombre))) AS VARCHAR(255)) AS Nombre,
-                CAST(UPPER(LTRIM(RTRIM(Apellido))) AS VARCHAR(255))  AS Apellido, 
+                CAST(UPPER(LTRIM(RTRIM(Nombre))) AS VARCHAR(128)) AS Nombre,
+                CAST(UPPER(LTRIM(RTRIM(Apellido))) AS VARCHAR(128))  AS Apellido, 
                 TRY_CAST(general.f_NormalizarDNI(DNI) AS INT) AS DNI,
                 general.f_NormalizarMail(EmailPersonal) AS Mail,
                 general.f_NormalizarTelefono(Telefono) AS Telefono,
